@@ -145,7 +145,7 @@ def ReadParameterFile(FileName='Params.dat'):
                 params[fpar] = float(val)
 
     #convert to int
-    intparams = ['sliceaxis','nslices','keepaxis']
+    intparams = ['sliceaxis','nslices','keepaxis','component']
     for ipar in intparams:
         if(ipar in params):
             val = params[ipar]
@@ -412,59 +412,175 @@ def Make2DSlice(data,sliceaxis=1,slice=0.,extractvars=['p.density']):
 
     return slice_data
 
-def Make1DSlice(data,keepaxis=1,slice=[0.,0.],extractvars=['p.density']):
-    #keepaxis=1 => z
-    #keepaxis=2 => y
-    #keepaxis=3 => x
+def _line_slice(arr, im, idx0, idx1, keepaxis, comp=None):
+    """
+    Slice a 1D line out of `arr` along the axis specified by keepaxis.
 
-    if (keepaxis==1):
-        w=[data.yf,data.xf]
-    elif(keepaxis==2):
-        w=[data.zf,data.xf]
-    elif(keepaxis==3):
-        w=[data.zf,data.yf]
+    Expected shapes:
+      4-D: (MB, Z, Y, X)
+      5-D: (MB, C, Z, Y, X)
+
+    keepaxis: 1->keep Z (vary Z), 2->keep Y, 3->keep X
+    comp:
+      - None: keep all components if present (returns (C, N) for 5-D; (N,) for 4-D)
+      - int : pick a single component (returns (N,))
+    """
+    if arr.ndim not in (4, 5):
+        raise ValueError(f"Unsupported rank {arr.ndim}; expected 4 or 5.")
+    has_comp = (arr.ndim == 5)
+
+    idx = [im]
+    if has_comp:
+        idx.append(slice(None) if comp is None else int(comp))
+
+    if keepaxis == 1:        # keep Z, fix Y=idx0, X=idx1
+        idx += [slice(None), idx0, idx1]
+    elif keepaxis == 2:      # keep Y, fix Z=idx0, X=idx1
+        idx += [idx0, slice(None), idx1]
+    elif keepaxis == 3:      # keep X, fix Z=idx0, Y=idx1
+        idx += [idx0, idx1, slice(None)]
+    else:
+        raise ValueError("keepaxis must be 1 (z), 2 (y), or 3 (x)")
+
+    return arr[tuple(idx)]
+
+def _find_cell_index(w_local, s):
+    """
+    Find the cell index i such that w_local[i] <= s < w_local[i+1].
+    If s == w_local[-1], snap to the last cell.
+    """
+    mask = (w_local[:-1] <= s) & (s < w_local[1:])
+    if not np.any(mask):
+        # handle exact right-edge
+        if np.isclose(s, w_local[-1]) and w_local.size >= 2:
+            return w_local.size - 2
+        return None
+    if np.sum(mask) != 1:
+        raise AssertionError("Multiple indices match cell-finder mask")
+    return np.where(mask)[0][0]
+
+def Make1DSlice(data, keepaxis=1, slice=[0., 0.], extractvars=['p.density'], comp=None):
+    """
+    Make a 1D slice through meshblocks.
+
+    keepaxis: 1=>z (keep Z, fix Y/X), 2=>y (keep Y, fix Z/X), 3=>x (keep X, fix Z/Y)
+    slice: [s0, s1] are physical positions along the *fixed* axes:
+        keepaxis=1 -> s0 along Y, s1 along X
+        keepaxis=2 -> s0 along Z, s1 along X
+        keepaxis=3 -> s0 along Z, s1 along Y
+    extractvars: list of variable keys in data.var
+    comp: None or int (see _line_slice docstring)
+    """
+    # Choose face arrays for the two fixed axes, and center coords for the kept axis
+    if keepaxis == 1:
+        w = [data.yf, data.xf]  # fixed axes faces
+        coord_center = data.zc   # kept axis centers
+    elif keepaxis == 2:
+        w = [data.zf, data.xf]
+        coord_center = data.yc
+    elif keepaxis == 3:
+        w = [data.zf, data.yf]
+        coord_center = data.xc
     else:
         raise ValueError("keepaxis must be 1 (z), 2 (y), or 3 (x)")
 
     slice_data = []
-    
+
     for im in range(data.NumMB):
-        # w[im] shape: (nz+1), (ny+1), or (nx+1) depending on sliceaxis
+        # Local face arrays for the two fixed axes
         w0_local = w[0][im, :]
         w1_local = w[1][im, :]
 
-        # Find zones where the slice falls between w_local edges
-        mask0 = (w0_local[:-1] <= slice[0]) & (slice[0] < w0_local[1:])
-        mask1 = (w1_local[:-1] <= slice[1]) & (slice[1] < w1_local[1:])
-        
-        if (np.any(mask0) & np.any(mask1)):
-            assert np.sum(mask0) == 1, f"Multiple indices match in meshblock {im}"
-            assert np.sum(mask1) == 1, f"Multiple indices match in meshblock {im}"
+        idx0 = _find_cell_index(w0_local, slice[0])
+        idx1 = _find_cell_index(w1_local, slice[1])
+        if idx0 is None or idx1 is None:
+            continue  # slice outside this meshblock
 
-            idx0 = np.where(mask0)[0][0]
-            idx1 = np.where(mask1)[0][0]
-            # Extract 1D slice by fixing idx0 and idx1 along the chosen axes
-            if keepaxis == 1:
-                slice_vars = {key: data.var[key][im, :, idx0, idx1] for key in extractvars}
-                coords = data.zc[im, :]
-            elif keepaxis == 2:
-                slice_vars = {key: data.var[key][im, idx0, :, idx1] for key in extractvars}
-                coords = data.yc[im, :]
-            elif keepaxis == 3:
-                slice_vars = {key: data.var[key][im, idx0, idx1, :] for key in extractvars}
-                coords = data.xc[im, :]
+        # Build dict of sliced variables
+        if keepaxis == 1:
+            slice_vars = {
+                key: _line_slice(data.var[key], im, idx0, idx1, keepaxis=1, comp=comp)
+                for key in extractvars
+            }
+            coords = coord_center[im, :]
+        elif keepaxis == 2:
+            slice_vars = {
+                key: _line_slice(data.var[key], im, idx0, idx1, keepaxis=2, comp=comp)
+                for key in extractvars
+            }
+            coords = coord_center[im, :]
+        else:  # keepaxis == 3
+            slice_vars = {
+                key: _line_slice(data.var[key], im, idx0, idx1, keepaxis=3, comp=comp)
+                for key in extractvars
+            }
+            coords = coord_center[im, :]
 
-            slice_data.append({
-                'time': data.t,
-                'keepaxis': keepaxis,
-                'slice': slice,
-                'meshblock': im,
-                'index': [idx0,idx1],
-                'slice_vars': slice_vars,
-                'coords': coords
-            })
+        slice_data.append({
+            'time': data.t,
+            'keepaxis': keepaxis,
+            'slice': slice,
+            'meshblock': im,
+            'index': [idx0, idx1],
+            'slice_vars': slice_vars,
+            'coords': coords
+        })
 
     return slice_data
+
+#def Make1DSlice(data,keepaxis=1,slice=[0.,0.],extractvars=['p.density']):
+#    #keepaxis=1 => z
+#    #keepaxis=2 => y
+#    #keepaxis=3 => x
+#
+#    if (keepaxis==1):
+#        w=[data.yf,data.xf]
+#    elif(keepaxis==2):
+#        w=[data.zf,data.xf]
+#    elif(keepaxis==3):
+#        w=[data.zf,data.yf]
+#    else:
+#        raise ValueError("keepaxis must be 1 (z), 2 (y), or 3 (x)")
+#
+#    slice_data = []
+#    
+#    for im in range(data.NumMB):
+#        # w[im] shape: (nz+1), (ny+1), or (nx+1) depending on sliceaxis
+#        w0_local = w[0][im, :]
+#        w1_local = w[1][im, :]
+#
+#        # Find zones where the slice falls between w_local edges
+#        mask0 = (w0_local[:-1] <= slice[0]) & (slice[0] < w0_local[1:])
+#        mask1 = (w1_local[:-1] <= slice[1]) & (slice[1] < w1_local[1:])
+#        
+#        if (np.any(mask0) & np.any(mask1)):
+#            assert np.sum(mask0) == 1, f"Multiple indices match in meshblock {im}"
+#            assert np.sum(mask1) == 1, f"Multiple indices match in meshblock {im}"
+#
+#            idx0 = np.where(mask0)[0][0]
+#            idx1 = np.where(mask1)[0][0]
+#            # Extract 1D slice by fixing idx0 and idx1 along the chosen axes
+#            if keepaxis == 1:
+#                slice_vars = {key: data.var[key][im, :, idx0, idx1] for key in extractvars}
+#                coords = data.zc[im, :]
+#            elif keepaxis == 2:
+#                slice_vars = {key: data.var[key][im, idx0, :, idx1] for key in extractvars}
+#                coords = data.yc[im, :]
+#            elif keepaxis == 3:
+#                slice_vars = {key: data.var[key][im, idx0, idx1, :] for key in extractvars}
+#                coords = data.xc[im, :]
+#
+#            slice_data.append({
+#                'time': data.t,
+#                'keepaxis': keepaxis,
+#                'slice': slice,
+#                'meshblock': im,
+#                'index': [idx0,idx1],
+#                'slice_vars': slice_vars,
+#                'coords': coords
+#            })
+#
+#    return slice_data
 
 def Make2DSlicesVsTime(params):
     import pickle
@@ -526,7 +642,7 @@ def Make1DSlicesVsTime(params):
         elif (params['keepaxis']==3):
             iofile=f'OneDSliceX_T{i:04d}.pkl'
         print(f"Making {iofile}")
-        slice_data=Make1DSlice(data,keepaxis=params['keepaxis'],slice=params['slice'],extractvars=params['varname'])
+        slice_data=Make1DSlice(data,keepaxis=params['keepaxis'],slice=params['slice'],extractvars=params['varname'],comp=params['component'])
         #Saving the slice with python's pickel.  We might consider using hdf5 instead.
         with open(iofile, "wb") as f:
             pickle.dump(slice_data, f)
