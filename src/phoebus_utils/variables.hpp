@@ -68,6 +68,7 @@ VARIABLE(p, density);
 VARIABLE(p, velocity);
 VARIABLE(p, energy);
 VARIABLE(p, bfield);
+VARIABLE(p, fbfield);
 VARIABLE(p, ye);
 VARIABLE_NONS(pressure);
 VARIABLE_NONS(temperature);
@@ -81,6 +82,7 @@ VARIABLE(c, density);
 VARIABLE(c, momentum);
 VARIABLE(c, energy);
 VARIABLE(c, bfield);
+VARIABLE(c, fbfield);
 VARIABLE(c, ye);
 } // namespace fluid_cons
 
@@ -132,6 +134,7 @@ namespace internal_variables {
 VARIABLE_NONS(face_signal_speed);
 VARIABLE_NONS(cell_signal_speed);
 VARIABLE_NONS(emf);
+VARIABLE_NONS(eemf);
 VARIABLE_NONS(c2p_scratch);
 VARIABLE_NONS(ql);
 VARIABLE_NONS(qr);

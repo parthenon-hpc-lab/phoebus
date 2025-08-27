@@ -141,6 +141,9 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   std::vector<MetadataFlag> prim_flags_vector = {Metadata::Cell, Metadata::Intensive,
                                                  Metadata::Vector, Metadata::Derived,
                                                  Metadata::OneCopy};
+  std::vector<MetadataFlag> prim_flags_vector_f = {Metadata::Face, Metadata::Intensive,
+                                                 Metadata::Vector, Metadata::Derived,
+                                                 Metadata::OneCopy};
   std::vector<MetadataFlag> prim_flags_scalar = {Metadata::Cell, Metadata::Intensive,
                                                  Metadata::Derived, Metadata::OneCopy};
   std::vector<MetadataFlag> cons_flags_scalar = {Metadata::Cell, Metadata::Independent,
@@ -149,6 +152,9 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   std::vector<MetadataFlag> cons_flags_vector = {
       Metadata::Cell,      Metadata::Independent, Metadata::Intensive,
       Metadata::Conserved, Metadata::Vector,      Metadata::WithFluxes};
+  std::vector<MetadataFlag> cons_flags_vector_f = {
+      Metadata::Face,      Metadata::Independent, Metadata::Intensive,
+      Metadata::Conserved, Metadata::Vector,      Metadata::WithFluxes};
 
   const std::string bc_vars = pin->GetOrAddString("phoebus/mesh", "bc_vars", "conserved");
   params.Add("bc_vars", bc_vars);
@@ -156,13 +162,16 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   if (bc_vars == "conserved") {
     cons_flags_scalar.push_back(Metadata::FillGhost);
     cons_flags_vector.push_back(Metadata::FillGhost);
+    cons_flags_vector_f.push_back(Metadata::FillGhost);
   } else if (bc_vars == "primitive") {
     prim_flags_scalar.push_back(Metadata::FillGhost);
     prim_flags_vector.push_back(Metadata::FillGhost);
+    prim_flags_vector_f.push_back(Metadata::FillGhost);
     // TODO(BRR) Still set FillGhost on conserved variables to ensure buffers exist.
     // Fixing this requires modifying parthenon Metadata logic.
     cons_flags_scalar.push_back(Metadata::FillGhost);
     cons_flags_vector.push_back(Metadata::FillGhost);
+    cons_flags_vector_f.push_back(Metadata::FillGhost);
   } else {
     PARTHENON_REQUIRE_THROWS(
         bc_vars == "conserved" || bc_vars == "primitive",
@@ -170,22 +179,24 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   }
 
   Metadata mprim_threev = Metadata(prim_flags_vector, three_vec);
+  Metadata mprim_threev_f = Metadata(prim_flags_vector_f, three_vec);
   Metadata mprim_scalar = Metadata(prim_flags_scalar);
   Metadata mcons_scalar = Metadata(cons_flags_scalar);
   Metadata mcons_threev = Metadata(cons_flags_vector, three_vec);
+  Metadata mcons_threev_f = Metadata(cons_flags_vector_f, three_vec);
 
   // TODO(BRR) Should these go in a "phoebus" package?
-  const std::string ix1_bc = pin->GetString("phoebus", "ix1_bc");
+  const std::string ix1_bc = pin->GetString("parthenon/mesh", "ix1_bc");
   params.Add("ix1_bc", ix1_bc);
-  const std::string ox1_bc = pin->GetString("phoebus", "ox1_bc");
+  const std::string ox1_bc = pin->GetString("parthenon/mesh", "ox1_bc");
   params.Add("ox1_bc", ox1_bc);
-  const std::string ix2_bc = pin->GetString("phoebus", "ix2_bc");
+  const std::string ix2_bc = pin->GetString("parthenon/mesh", "ix2_bc");
   params.Add("ix2_bc", ix2_bc);
-  const std::string ox2_bc = pin->GetString("phoebus", "ox2_bc");
+  const std::string ox2_bc = pin->GetString("parthenon/mesh", "ox2_bc");
   params.Add("ox2_bc", ox2_bc);
-  const std::string ix3_bc = pin->GetString("phoebus", "ix3_bc");
+  const std::string ix3_bc = pin->GetString("parthenon/mesh", "ix3_bc");
   params.Add("ix3_bc", ix3_bc);
-  const std::string ox3_bc = pin->GetString("phoebus", "ox3_bc");
+  const std::string ox3_bc = pin->GetString("parthenon/mesh", "ox3_bc");
   params.Add("ox3_bc", ox3_bc);
 
   int ndim = 1;
@@ -194,12 +205,17 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   else if (pin->GetInteger("parthenon/mesh", "nx2") > 1)
     ndim = 2;
 
+
   // add the primitive variables
   physics->template AddField<p::density>(mprim_scalar);
   physics->AddField(p::velocity::name(), mprim_threev);
   physics->AddField(p::energy::name(), mprim_scalar);
+  // TODO(BLB): Register refinement ops
   if (mhd) {
+    std::vector<MetadataFlag> flags_emf = {Metadata::Real, Metadata::Edge, Metadata::Derived, Metadata::OneCopy, Metadata::FillGhost};
     physics->AddField(p::bfield::name(), mprim_threev);
+    physics->AddField(p::fbfield::name(), mprim_threev_f);
+    physics->AddField(impl::eemf::name(), Metadata(flags_emf));
     if (ndim == 2) {
       physics->AddField(impl::emf::name(), mprim_scalar);
     } else if (ndim == 3) {
