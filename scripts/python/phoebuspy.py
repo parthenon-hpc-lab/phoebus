@@ -263,7 +263,7 @@ def MovieGR(data,varname='monopole_gr/rhoadm',anax=None,anay=None,ylim=None,xlim
     
     return
 
-def CalcScatter3DvsRadius(data,nradbins=100,varname=None):
+def CalcStatistics3DvsRadius(data,nradbins=100,varname=None):
     if (varname is None):
         varname = 'p.density'
 
@@ -821,7 +821,7 @@ def main():
     import argparse
     parser=argparse.ArgumentParser()
     parser.add_argument('--Movie1D', action='store_true')
-    parser.add_argument('--CalcScatterProfiles', action='store_true')
+    parser.add_argument('--CalcStatisticsProfiles', action='store_true')
     #parser.add_argument('--varname', type=str, default='p.density')
     parser.add_argument('--Make2DSlicesVsTime', action='store_true')
     parser.add_argument('--Make2DSlicesVsCoord', action='store_true')
@@ -833,7 +833,7 @@ def main():
     params = ReadParameterFile()
 
     
-    if (args.CalcScatterProfiles):
+    if (args.CalcStatisticsProfiles):
         #List of outfile names                                                      
         filenames = sorted(glob(f"*.out1.*.phdf"))
         nfiles = len(filenames)
@@ -842,7 +842,7 @@ def main():
             for var in params['varname']:
                 iofile=f'ScatterProfile.{var}.{i:04d}.npz'
                 print(f"Making {iofile}")
-                radbins,varpercentiles = CalcScatter3DvsRadius(data,nradbins=400,varname=var)
+                radbins,varpercentiles = CalcStatistics3DvsRadius(data,nradbins=400,varname=var)
                 np.savez(iofile,radbins=radbins,varpercentiles=varpercentiles)
 
                 
