@@ -45,7 +45,7 @@ class Dump1D:
         return
 
 class Dump3D:
-    #So far this, the only difference between this and Dump1D is
+    #So far the only difference between this and Dump1D is
     #the size of var[key].  They are inherently 1D in Dump1D and
     #3D in Dump3D.  Maybe we can unify this into one class at some point.
     def __init__(self, filename,extractvars=None):
@@ -164,15 +164,6 @@ def ReadParameterFile(FileName='Params.dat'):
             else:
                 params[bpar] = (val.lower() == 'true')
 
-    ##Split param into a list if needed
-    #splitparams = ['varname']
-    #for spar in splitparams:
-    #    if (spar in params):
-    #        temp = params[spar]
-    #        temp = temp.split(',')
-    #        temp = [s.strip() for s in temp]
-    #        params[spar] = temp
-
     #Default Values
     if (('varname' in params) == False):
         params['varname'] = 'p.density'
@@ -268,29 +259,10 @@ def CalcStatistics3DvsRadius(data,nradbins=100,varname=None):
         varname = 'p.density'
 
     import time
-    #start = time.time()
-    #radius = np.sqrt(data.xgrid**2 + data.ygrid**2 + data.zgrid**2)
-    #print("Numpy took", time.time() - start)
-
-    #start = time.time()
-    #x=data.xgrid
-    #y=data.ygrid
-    #z=data.zgrid
-    #radius_ne = ne.evaluate("sqrt(x**2 + y**2 + z**2)")
-    #print("NumExpr took", time.time() - start)
-    #exit()
-    #print("Calculating Radius...",end="")
     x=data.xgrid
     y=data.ygrid
     z=data.zgrid
     radius = ne.evaluate("sqrt(x**2 + y**2 + z**2)")
-    
-    #from scipy.stats import binned_statistic
-    ## Flatten everything
-    #flat_radius = radius.ravel()
-    #flat_var = data.var[varname].ravel()
-    #radius = np.sqrt(data.xgrid**2 + data.ygrid**2 + data.zgrid**2)
-    #print("Done.")
     
     radmax_overall = np.max(radius)
     radedges = np.linspace(0.,radmax_overall,nradbins+1)
