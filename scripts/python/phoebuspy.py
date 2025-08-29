@@ -268,14 +268,6 @@ def CalcStatistics3DvsRadius(data,nradbins=100,varname=None):
     radedges = np.linspace(0.,radmax_overall,nradbins+1)
     radcenters = 0.5 * (radedges[:-1] + radedges[1:])
 
-    ## Compute percentiles
-    #p20, _, _ = binned_statistic(flat_radius, flat_var, statistic=lambda v: np.percentile(v, 20), bins=radedges)
-    #p50, _, _ = binned_statistic(flat_radius, flat_var, statistic=lambda v: np.percentile(v, 50), bins=radedges)
-    #p80, _, _ = binned_statistic(flat_radius, flat_var, statistic=lambda v: np.percentile(v, 80), bins=radedges)
-
-    ## Stack for plotting
-    #varpercentiles = np.vstack([p20, p50, p80])
-    
     varpercentiles = np.zeros((3,nradbins))
     varhopper = [[] for _ in range(nradbins)]
     for im in range(data.NumMB):
@@ -299,36 +291,13 @@ def CalcStatistics3DvsRadius(data,nradbins=100,varname=None):
             varhopper[ir].append(data_sorted[start:end])
             start = end 
         
-        ##irmin = np.min(irads)
-        ##irmax = np.max(irads)
-        ##irmax = min(irmax,nradbins-1)
-        #ir_used = np.unique(irads)
-
-        #print(f'Adding vars to varhopper for meshblock {im}...',end="")
-        ##for ir in range(irmin,irmax+1):
-        #for ir in ir_used:
-        #    mask = (irads == ir)
-        #    vars_in_bin = data_mb[mask]
-        #    #idx = np.where(ir == irads)
-        #    #vars_in_bin = data_mb[idx]
-        #    varhopper[ir].extend(vars_in_bin.tolist())
-        #print("Done.")
-
     for i, bin_chunks in enumerate(varhopper):
         if bin_chunks:
             values = np.concatenate(bin_chunks)
             varpercentiles[:, i] = np.percentile(values, [20, 50, 80])
         else:
             varpercentiles[:, i] = np.nan
-            
-    #for i,vars_in_bin in enumerate(varhopper):
-    #    ncells = len(vars_in_bin)
-    #    print(f"{ncells} cells in radial bin {i}.")
-    #    percentiles = np.percentile(np.array(vars_in_bin), [20, 50, 80])
-    #    varpercentiles[:, i] = percentiles
-
-    #radbins = 0.5*(radedges[0:-1]+radedges[1:])
-        
+                    
     return radcenters,varpercentiles
 
 def Make2DSlice(data,sliceaxis=1,slice=0.,extractvars=['p.density']):
@@ -361,15 +330,12 @@ def Make2DSlice(data,sliceaxis=1,slice=0.,extractvars=['p.density']):
             # Extract 2D slice by fixing idx along the chosen axis
             if sliceaxis == 1:
                 slice_vars = {key: data.var[key][im, idx, :, :] for key in extractvars}
-                #coords = (data.xgrid[im, idx, :, :], data.ygrid[im, idx, :, :])
                 coords = (data.xf[im, :], data.yf[im, :])
             elif sliceaxis == 2:
                 slice_vars = {key: data.var[key][im, :, idx, :] for key in extractvars}
-                #coords = (data.xgrid[im, :, idx, :], data.zgrid[im, :, idx, :])
                 coords = (data.xf[im, :], data.zf[im, :])
             elif sliceaxis == 3:
                 slice_vars = {key: data.var[key][im, :, :, idx] for key in extractvars}
-                #coords = (data.ygrid[im, :, :, idx], data.zgrid[im, :, :, idx])
                 coords = (data.yf[im, :], data.zf[im, :])
 
             slice_data.append({
@@ -499,60 +465,6 @@ def Make1DSlice(data, keepaxis=1, slice=[0., 0.], extractvars=['p.density'], com
         })
 
     return slice_data
-
-#def Make1DSlice(data,keepaxis=1,slice=[0.,0.],extractvars=['p.density']):
-#    #keepaxis=1 => z
-#    #keepaxis=2 => y
-#    #keepaxis=3 => x
-#
-#    if (keepaxis==1):
-#        w=[data.yf,data.xf]
-#    elif(keepaxis==2):
-#        w=[data.zf,data.xf]
-#    elif(keepaxis==3):
-#        w=[data.zf,data.yf]
-#    else:
-#        raise ValueError("keepaxis must be 1 (z), 2 (y), or 3 (x)")
-#
-#    slice_data = []
-#    
-#    for im in range(data.NumMB):
-#        # w[im] shape: (nz+1), (ny+1), or (nx+1) depending on sliceaxis
-#        w0_local = w[0][im, :]
-#        w1_local = w[1][im, :]
-#
-#        # Find zones where the slice falls between w_local edges
-#        mask0 = (w0_local[:-1] <= slice[0]) & (slice[0] < w0_local[1:])
-#        mask1 = (w1_local[:-1] <= slice[1]) & (slice[1] < w1_local[1:])
-#        
-#        if (np.any(mask0) & np.any(mask1)):
-#            assert np.sum(mask0) == 1, f"Multiple indices match in meshblock {im}"
-#            assert np.sum(mask1) == 1, f"Multiple indices match in meshblock {im}"
-#
-#            idx0 = np.where(mask0)[0][0]
-#            idx1 = np.where(mask1)[0][0]
-#            # Extract 1D slice by fixing idx0 and idx1 along the chosen axes
-#            if keepaxis == 1:
-#                slice_vars = {key: data.var[key][im, :, idx0, idx1] for key in extractvars}
-#                coords = data.zc[im, :]
-#            elif keepaxis == 2:
-#                slice_vars = {key: data.var[key][im, idx0, :, idx1] for key in extractvars}
-#                coords = data.yc[im, :]
-#            elif keepaxis == 3:
-#                slice_vars = {key: data.var[key][im, idx0, idx1, :] for key in extractvars}
-#                coords = data.xc[im, :]
-#
-#            slice_data.append({
-#                'time': data.t,
-#                'keepaxis': keepaxis,
-#                'slice': slice,
-#                'meshblock': im,
-#                'index': [idx0,idx1],
-#                'slice_vars': slice_vars,
-#                'coords': coords
-#            })
-#
-#    return slice_data
 
 def Make2DSlicesVsTime(params):
     import pickle
@@ -794,7 +706,6 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--Movie1D', action='store_true')
     parser.add_argument('--CalcStatisticsProfiles', action='store_true')
-    #parser.add_argument('--varname', type=str, default='p.density')
     parser.add_argument('--Make2DSlicesVsTime', action='store_true')
     parser.add_argument('--Make2DSlicesVsCoord', action='store_true')
     parser.add_argument('--Make1DSlicesVsTime', action='store_true')
