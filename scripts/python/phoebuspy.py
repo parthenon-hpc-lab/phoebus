@@ -7,7 +7,16 @@ import re
 from glob import glob
 
 #On Polaris, you need to create a conda environment via...
-#conda create -n phoebuspy numpy numexpr matplotlib h5py scipy -y
+#If phoebuspy conda environment is already active
+#conda deactivate
+#If you want to delete the old environment and start from scratch.
+#module unload xalt
+#conda env remove -n phoebuspy
+#If you want to create the phosbuspy conda environment
+#conda create -n phoebuspy numpy numexpr matplotlib h5py scipy pyyaml -y
+#The above needs to be once to define the environment...
+#Do this every time you need to use python on Polaris
+#conda activate phoebuspy
 
 class Dump1D:
     def __init__(self, filename):
@@ -115,54 +124,31 @@ class DumpGR:
                 pass
         return
 
-def ReadParameterFile(FileName='Params.dat'):
-    params = {}
-
-    with open(FileName) as fobj:
     
-        for line in fobj:
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue #skip blank lines and comments
-            key_value = line.split('=')
-            if len(key_value) == 2:
-                #params[key_value[0].strip()] = key_value[1].strip()
-                key = key_value[0].strip()
-                val = key_value[1].strip()
-                #Detect lists: comma-separated
-                if ',' in val:
-                    val = [v.strip() for v in val.split(',')]
-                params[key] = val
-
-    #convert to float
-    floatparams = ['slice','varmin','varmax']
-    for fpar in floatparams:
-        if(fpar in params):
-            val = params[fpar]
-            if isinstance(val,list):
-                params[fpar] = [float(v) for v in val]
-            else:
-                params[fpar] = float(val)
-
-    #convert to int
-    intparams = ['sliceaxis','nslices','keepaxis','component']
-    for ipar in intparams:
-        if(ipar in params):
-            val = params[ipar]
-            if (isinstance(val,list)):
-                params[ipar] = [int(v) for v in val]
-            else:
-                params[ipar] = int(val)
-
-    #convert to boolean
-    boolparams = ['plotlog']
-    for bpar in boolparams:
-        if (bpar in params):
-            val = params[bpar]
-            if (isinstance(val,list)):
-                params[bpar] = [(v.lower()=='true') for v in val]
-            else:
-                params[bpar] = (val.lower() == 'true')
+def ReadParameterFile(FileName='Params.yml'):
+    import yaml
+    #This reads Params.yml to create the params dict that contains runtime parameters.
+    
+    #The following is an example syntax for the file.
+    #---
+    #sliceaxis: 1
+    #keepaxis: 3
+    #component: 4
+    #slice:
+    #  - 0.
+    #  - -200.
+    #nslices: 50
+    #varname:
+    #  - flux_divergence
+    #plotlog: False
+    #varmin: -1.e-21
+    #varmax: 0.
+    #phdffile: tov.out1.00037.phdf
+    #---
+    
+    # Open the YAML file
+    with open(FileName, "r") as f:
+        params = yaml.safe_load(f)
 
     #Default Values
     if (('varname' in params) == False):
@@ -177,7 +163,8 @@ def ReadParameterFile(FileName='Params.dat'):
         params['varmax'] = -3.
     if (('plotlog' in params) == False):
         params['plotlog'] = False
-        
+
+    #Make sure the varname is a list even if there is only one value.  This ensures compatability with functions below.
     params['varname'] = params['varname'] if isinstance(params['varname'],list) else [params['varname']]
     
     return params
@@ -714,7 +701,6 @@ def main():
     args= parser.parse_args()
 
     params = ReadParameterFile()
-
     
     if (args.CalcStatisticsProfiles):
         #List of outfile names                                                      
