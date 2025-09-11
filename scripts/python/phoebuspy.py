@@ -686,7 +686,11 @@ def PlotHistory(histdata,varname='maximum density'):
     pl.close()
 
     return
+
+def FindIndices(params):
     
+    return
+
 def main():
 
     import argparse
@@ -698,10 +702,14 @@ def main():
     parser.add_argument('--Make1DSlicesVsTime', action='store_true')
     parser.add_argument('--Movie2DSlices', action='store_true')
     parser.add_argument('--Movie1DSlicesVsTime', action='store_true')
+    parser.add_argument('--FindIndices',action='store_true')
     args= parser.parse_args()
 
     params = ReadParameterFile()
-    
+
+    if (args.FindIndices):
+        FindIndices(params)
+        
     if (args.CalcStatisticsProfiles):
         #List of outfile names                                                      
         filenames = sorted(glob(f"*.out1.*.phdf"))
