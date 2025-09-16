@@ -653,6 +653,60 @@ def Movie1DSlicesVsTime(varname=['p.density'],plotlog=True,varbounds=[-16.,-3.])
     
     return
 
+def FindIndices(params):
+    
+    if (('filenameX' in params) == False):
+        filenameX = 'OneDSliceX_T0002.pkl'
+    else:
+        filenameX = params['filenameX']
+        
+    if (('filenameY' in params) == False):
+        filenameY = 'OneDSliceY_T0002.pkl'
+    else:
+        filenameY = params['filenameY']
+        
+    if (('filenameZ' in params) == False):
+        filenameZ = 'OneDSliceZ_T0002.pkl'
+    else:
+        filenameZ = params['filenameZ']
+    
+    with open(filenameX, "rb") as fX:
+        slice_dataX = pickle.load(fX)
+    with open(filenameY, "rb") as fY:
+        slice_dataY = pickle.load(fY)
+    with open(filenameZ, "rb") as fZ:
+        slice_dataZ = pickle.load(fZ)
+
+    def MakeFlattenedArrays(slice_data):
+        xs = []
+        ms = []
+        indices = []
+        vars = []
+        for block in sliced_data:
+            x = block['coords']
+            vars.append(block['slice_vars'])
+            xs.append(x)
+            nx = np.size(x)
+            ms.append(np.full(nx,block['meshblock'],dtype=int))
+            index = block['index']
+            indices.append(np.tile(index, (nx, 1)))   # repeat [i, j] nx times
+        xflat = np.hstack(xs)
+        varsflat = np.hstack(vars)
+        mflat = np.hstack(ms)
+        iflat = np.vstack(indices)  # shape (len(xflat), 2)
+        idx = np.argsort(xflat)
+        x_sorted = xflat[idx]
+        vars_sorted = varsflat[idx]
+        m_sorted = mflat[idx]
+        i_sorted = iflat[idx]
+        return (x_sorted,vars_sorted,m_sorted,i_sorted)
+
+    x_sorted,vars_x_sorted,m_x_sorted, i_x_sorted = MakeFlattenedArrays(slice_dataX)
+    y_sorted,vars_y_sorted,m_y_sorted, i_y_sorted = MakeFlattenedArrays(slice_dataY)
+    z_sorted,vars_z_sorted,m_z_sorted, i_z_sorted = MakeFlattenedArrays(slice_dataZ)
+
+    print(np.size(vars_x_sorted))
+
 def ReadHistory(fname=None):
     if (fname is None):
         fname = glob(f"*.hst")[0] #This assumes that there is only one .hst file.
@@ -685,10 +739,6 @@ def PlotHistory(histdata,varname='maximum density'):
     pl.savefig(fout)
     pl.close()
 
-    return
-
-def FindIndices(params):
-    
     return
 
 def main():
