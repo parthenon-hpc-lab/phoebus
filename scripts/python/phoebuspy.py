@@ -654,6 +654,7 @@ def Movie1DSlicesVsTime(varname=['p.density'],plotlog=True,varbounds=[-16.,-3.])
     return
 
 def FindIndices(params):
+    import pickle
     
     if (('filenameX' in params) == False):
         filenameX = 'OneDSliceX_T0002.pkl'
@@ -682,9 +683,11 @@ def FindIndices(params):
         ms = []
         indices = []
         vars = []
-        for block in sliced_data:
+        for block in slice_data:
             x = block['coords']
-            vars.append(block['slice_vars'])
+            #At the moment, this only looks at the first element in varname.
+            var = block['slice_vars'][params['varname'][0]]
+            vars.append(var)
             xs.append(x)
             nx = np.size(x)
             ms.append(np.full(nx,block['meshblock'],dtype=int))
@@ -705,7 +708,24 @@ def FindIndices(params):
     y_sorted,vars_y_sorted,m_y_sorted, i_y_sorted = MakeFlattenedArrays(slice_dataY)
     z_sorted,vars_z_sorted,m_z_sorted, i_z_sorted = MakeFlattenedArrays(slice_dataZ)
 
-    print(np.size(vars_x_sorted))
+    #Check that x,y,z actually have the same values.
+    #This is imiportant for the symmetry check later.
+    #It might be good to do this automatically in the future.
+    #scalenorm = x_sorted[-1]-x_sorted[0]
+    #diffxy = x_sorted-y_sorted
+    #print(np.max(np.abs(diffxy/scalenorm)))
+    #Passes this check.
+
+    idx = np.where(np.abs(x_sorted) <= 50.)
+    scalenorm = np.max(np.abs(vars_x_sorted))
+    diffvarxy = (vars_x_sorted-vars_y_sorted)/scalenorm
+    diffvarxz = (vars_x_sorted-vars_z_sorted)/scalenorm
+    diffvaryz = (vars_y_sorted-vars_z_sorted)/scalenorm
+    imax = np.argmax(np.abs(diffvarxy))
+    print(imax,diffvarxy[imax],m_x_sorted[imax],i_x_sorted[imax])
+    idxm = np.where(m_x_sorted == m_x_sorted[imax])
+    print(diffvarxy[idxm])
+    exit()
 
 def ReadHistory(fname=None):
     if (fname is None):
