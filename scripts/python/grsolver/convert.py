@@ -18,7 +18,9 @@ msun = const.M_sun.cgs.value
 def ConvertData(filename, formattype):
     data = ascii.read(filename, format=formattype)
     rhoc = max(data["mass_density"])
+    # we'll want to output this characteristic mass (below)
     M0 = 1.0 / (rhoc) ** (0.5) * (c ** 2.0 / G) ** (1.5)
+    R0 = (G * M0) / (c ** 2.0)
     newdata = Table()
     newdata["r"] = data["r"] * c ** 2.0 / G / M0
     # np.save('r',newdata['r'])
@@ -26,7 +28,6 @@ def ConvertData(filename, formattype):
     newdata["temp"] = data["temp"]
     newdata["Ye"] = data["Ye"]
     newdata["specific_internal_energy"] = data["specific_internal_energy"] / c ** 2.0
-    newdata["velocity"] = data["velocity"] / c
     newdata["pressure"] = data["pressure"] * G ** 3.0 / c ** 8.0 * M0 ** 2.0
     dvdr = (newdata["velocity"][1:] - newdata["velocity"][:-1]) / (
         newdata["r"][1:] - newdata["r"][:-1]
@@ -36,6 +37,12 @@ def ConvertData(filename, formattype):
     newdata["S_adm"] = data["S_adm"] * G ** 3.0 / c ** 8.0 * M0 ** 2.0
     newdata["Srr_adm"] = data["Srr_adm"] * G ** 3.0 / c ** 8.0 * M0 ** 2.0
     ascii.write(newdata, "converted_" + filename, overwrite=True, format=formattype)
+    print(f'characteristic mass (g):\t{M0}')
+    print(f'characteristic length (cm):\t{R0}')
+    print(f'500 km scale:\t\t\t{500e5/R0}')
+    print()
+    print(f'sie, upper limit (cu):\t\t{np.max(newdata["specific_internal_energy"])}')
+    print(f'sie, lower limit (cu):\t\t{np.min(newdata["specific_internal_energy"])}')
     return
 
 
