@@ -144,6 +144,8 @@ KOKKOS_INLINE_FUNCTION Real energy_from_rho_P(T &eos, const Real rho, const Real
   PARTHENON_REQUIRE(P >= 0, "Pressure is negative!");
   PressResidual res(eos, rho, P, Ye);
   root_find::RootFind root;
+  printf("regula falsi, pgen\n");
+  // printf("root finding, regula falsi, eos. a, b, ya, yb = %g %g %g %g\n", emin, emax, 1.e-10*P, emin - 1.e10);
   Real eroot = root.regula_falsi(res, emin, emax, 1.e-10 * P, emin - 1.e10);
   return rho * eroot;
 }

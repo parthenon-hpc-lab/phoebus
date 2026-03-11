@@ -24,6 +24,7 @@
 #include "progenitor/progenitordata.hpp"
 #include <parthenon/package.hpp>
 #include <utils/error_checking.hpp>
+// #include "phoebus_utils/unit_conversions.hpp" // will this work or do i need to fix the cmakelists?
 
 using DataBox = Spiner::DataBox<Real>;
 
@@ -37,6 +38,7 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
   PARTHENON_REQUIRE(is_monopole_cart || is_monopole_sph, "Monopole GR Required");
   auto &rc = pmb->meshblock_data.Get();
   auto geom = Geometry::GetCoordinateSystem(rc.get());
+  std::printf("TRUE???");
 
   PackIndexMap imap;
   auto v =
@@ -79,7 +81,14 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
   auto mass_density_dev = progenitor_pkg->Param<DataBox>("mass_density_dev");
   auto Ye_dev = progenitor_pkg->Param<DataBox>("Ye_dev");
   auto velocity_dev = progenitor_pkg->Param<DataBox>("velocity_dev");
+  // << removing P, adding T for eos calculations.
+  auto temp_dev = progenitor_pkg->Param<DataBox>("temp_dev");
   auto pressure_dev = progenitor_pkg->Param<DataBox>("pressure_dev");
+
+  // TESTING
+  FILE * fout;
+  fout = fopen("primitives.dat", "w");
+  fprintf( fout, "%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\n", "radius", "density", "sie", "u", "temp", "pressure");
 
   // MonopoleGR
   static bool monopole_initialized = false;
@@ -131,12 +140,24 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
           lambda[0] = v(iye, k, j, i);
         }
 
-        const Real u = phoebus::energy_from_rho_P(eos, mass_density_dev.interpToReal(r),
-                                                  pressure_dev.interpToReal(r), emin,
-                                                  emax, lambda[0]);
-        const Real sie = u / mass_density_dev.interpToReal(r);
-        const Real T = eos.TemperatureFromDensityInternalEnergy(
-            mass_density_dev.interpToReal(r), sie, lambda);
+      //   const Real u = phoebus::energy_from_rho_P(eos, mass_density_dev.interpToReal(r),
+      //                                             pressure_dev.interpToReal(r), emin,
+      //                                             emax, lambda[0]);
+      //   const Real sie = u / mass_density_dev.interpToReal(r);
+      //   const Real T = eos.TemperatureFromDensityInternalEnergy(
+      //     mass_density_dev.interpToReal(r), sie, lambda);
+
+      // printf("ORG :: rho: %g, T: %g, eps: %g, u: %g, P: %g\n", mass_density_dev.interpToReal(r), T, sie, u, pressure_dev.interpToReal(r));
+   
+  // TODO: fix this so that we're getting SIE from rho, T (like before), need to adjust inputs.			  
+        const Real sie_ = eos.InternalEnergyFromDensityTemperature( (mass_density_dev.interpToReal(r)), temp_dev.interpToReal(r), lambda );
+        const Real u_ = sie_ * mass_density_dev.interpToReal(r);
+        const Real T_ = temp_dev.interpToReal(r);
+        const Real P = eos.PressureFromDensityTemperature( (mass_density_dev.interpToReal(r)), temp_dev.interpToReal(r), lambda );
+        // TEST to see if we're in code units or not....
+        // printf("NEW :: rho: %g, T: %g, eps: %g, u: %g, P: %g\n\n", mass_density_dev.interpToReal(r), T_, sie_, u_, P);
+
+        fprintf( fout, "%-10.8e\t%-10.8e\t%-10.8e\t%-10.8e\t%-10.8e\t%-10.8e\n", r, mass_density_dev.interpToReal(r), sie_, u_, T_, P);
 
         Real vel_vec_in[3] = {0};
         Real vel_vec_out[3] = {0};
@@ -149,9 +170,10 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
 
         v(irho, k, j, i) = mass_density_dev.interpToReal(r);
         SPACELOOP(d) { v(ivlo + d, k, j, i) = vel_vec_out[d]; }
-        v(iprs, k, j, i) = pressure_dev.interpToReal(r);
-        v(ieng, k, j, i) = u;
-        v(itmp, k, j, i) = T;
+        // v(iprs, k, j, i) = pressure_dev.interpToReal(r);
+        v(iprs, k, j, i) = P; // pressure from EOS
+        v(ieng, k, j, i) = u_;
+        v(itmp, k, j, i) = T_;
         v(igm1, k, j, i) = eos.BulkModulusFromDensityTemperature(
                                v(irho, k, j, i), v(itmp, k, j, i), lambda) /
                            v(iprs, k, j, i);

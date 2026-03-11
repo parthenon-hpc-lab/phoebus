@@ -67,18 +67,18 @@ class Residual {
   }
 
   KOKKOS_FORCEINLINE_FUNCTION
-  Real x_mu(const Real mu) { return robust::ratio(1.0, 1.0 + mu * bsq_); }
+  Real x_mu(const Real mu) { return robust::ratio(1.0, 1.0 + mu * bsq_); } // Kastaun+21, eq. 26
   KOKKOS_FORCEINLINE_FUNCTION
-  Real rbarsq_mu(const Real mu, const Real x) {
+  Real rbarsq_mu(const Real mu, const Real x) { // Kastaun+21, eq. 38
     return x * (x * rsq_ + mu * (1.0 + x) * rbsq_);
   }
   KOKKOS_FORCEINLINE_FUNCTION
-  Real qbar_mu(const Real mu, const Real x) {
+  Real qbar_mu(const Real mu, const Real x) { // Kastaun+21, eq. 39
     const Real mux = mu * x;
     return q_ - 0.5 * (bsq_ + mux * mux * bsq_rpsq_);
   }
   KOKKOS_FORCEINLINE_FUNCTION
-  Real vhatsq_mu(const Real mu, const Real rbarsq) {
+  Real vhatsq_mu(const Real mu, const Real rbarsq) { // Kastaun+21, eq. 40a, squared for What
     const Real vsq_trial = mu * mu * rbarsq;
     if (vsq_trial > v0sq_) {
       used_gamma_max_ = true;
@@ -89,9 +89,8 @@ class Residual {
     }
   }
   KOKKOS_FORCEINLINE_FUNCTION
-  Real iWhat_mu(const Real vhatsq) { return std::sqrt(1.0 - vhatsq); }
-  KOKKOS_FORCEINLINE_FUNCTION
-  Real rhohat_mu(const Real iWhat) {
+  Real iWhat_mu(const Real vhatsq) { return std::sqrt(1.0 - vhatsq); } // Kastaun+21, eq. 40b,  INVERTED
+  Real rhohat_mu(const Real iWhat) { // Kastaun+21, eq. 41; only correct if we leave iWhat as is above (preventing division)
     const Real rho_trial = D_ * iWhat;
     if (rho_trial <= rho_floor_) {
       used_density_floor_ = true;
@@ -138,16 +137,16 @@ class Residual {
     Real rhohat = rhohat_mu(iWhat);
     Real ehat = ehat_mu(mu, qbar, rbarsq, vhatsq, What);
     const Real Phat = eos_.PressureFromDensityInternalEnergy(rhohat, ehat, lambda_);
-    Real hhat = rhohat * (1.0 + ehat) + Phat;
+    Real hhat = rhohat * (1.0 + ehat) + Phat; // are we finiding hhat correctly?
     const Real ahat = Phat / make_positive(hhat - Phat);
-    hhat /= make_positive(rhohat);
+    hhat /= make_positive(rhohat); // << yes! this matches Kastaun+21, eq. 2; def of relativistic enthalpy
 
     const Real nua = (1.0 + ahat) * (1.0 + ehat) * iWhat;
     const Real nub = (1.0 + ahat) * (1.0 + qbar - mu * rbarsq);
-    const Real nuhat = std::max(nua, nub);
+    const Real nuhat = std::max(nua, nub); // Kastaun+21, eq. 46 -> 48
 
-    const Real muhat = 1.0 / (nuhat + mu * rbarsq);
-    return mu - muhat;
+    const Real muhat = 1.0 / (nuhat + mu * rbarsq); // Kastaun+21, eq. 45
+    return mu - muhat; // Kastaun+21, eq. 44
   }
 
   KOKKOS_INLINE_FUNCTION
