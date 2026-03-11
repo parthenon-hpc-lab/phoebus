@@ -371,6 +371,17 @@ class ConToPrim {
     //            Doesn't seem to be at a quick glance.
     // const Real mu_r = res.compute_upper_bound(h0sq_);
     // solve
+
+    /**
+     * TODO: implement method to find lower enthalpy bound h0 (upper root find bound) 
+     * 
+     * Katsaun et al. 2021 only assumes h > 0, not h ≥ 1; we shouldn't have a hardcoded upper bound here.
+     * stellar collapse eos can have h < 1 due to included nuclear binding energies (e.g. Steiner et al. 
+     * 2012), this breaks our root find when mapping onto the gr grid at initialization.
+     * 
+     * can probably be resolved with an eos-conscious method using primitives (P, rho, eps) passed into here, solution tbd. 
+     */ 
+
     root_find::RootFind root(max_iter);
     const Real mu = root.regula_falsi(res, 0.0, 1.0, rel_tolerance, v(c2p_mu));
     v(c2p_mu) = mu;
