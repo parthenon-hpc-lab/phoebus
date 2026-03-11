@@ -146,7 +146,6 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
       //   const Real sie = u / mass_density_dev.interpToReal(r);
       //   const Real T = eos.TemperatureFromDensityInternalEnergy(
       //     mass_density_dev.interpToReal(r), sie, lambda);
-
       // printf("ORG :: rho: %g, T: %g, eps: %g, u: %g, P: %g\n", mass_density_dev.interpToReal(r), T, sie, u, pressure_dev.interpToReal(r));
    
   // TODO: fix this so that we're getting SIE from rho, T (like before), need to adjust inputs.			  
