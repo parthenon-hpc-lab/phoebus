@@ -45,6 +45,8 @@ struct FailFlags {
 
 class Residual {
  public:
+
+ // TODO: check if this causes compile error (leaving const variables in constructor def.)
   KOKKOS_FUNCTION
   Residual(const Real D, const Real q, const Real bsq, const Real bsq_rpsq,
            const Real rsq, const Real rbsq, const Real v0sq, const Real Ye,
@@ -57,6 +59,28 @@ class Residual {
     Real garbage = 0.0;
     bounds_.GetFloors(x1_, x2_, x3_, rho_floor_, garbage);
     bounds_.GetCeilings(x1_, x2_, x3_, gam_max_, e_max_);
+
+    rho_floor_ *= floor_scale_fac_;
+  }
+
+  // NEW: overloaded constructor that handles calculation of h0sq, v0sq internally
+  KOKKOS_FUNCTION
+  Residual(const Real D, const Real q, const Real bsq, const Real bsq_rpsq,
+           const Real rsq, const Real rbsq, const Real Ye,
+           const Microphysics::EOS::EOS &eos, const fixup::Bounds &bnds, const Real x1,
+           const Real x2, const Real x3, const Real floor_scale_fac)
+      : D_(D), q_(q), bsq_(bsq), bsq_rpsq_(bsq_rpsq), rsq_(rsq), rbsq_(rbsq),
+        eos_(eos), bounds_(bnds), x1_(x1), x2_(x2), x3_(x3),
+        floor_scale_fac_(floor_scale_fac) {
+
+    lambda_[0] = Ye;
+    Real garbage = 0.0;
+    bounds_.GetFloors(x1_, x2_, x3_, rho_floor_, garbage);
+    bounds_.GetCeilings(x1_, x2_, x3_, gam_max_, e_max_);
+
+    h0sq_ = calc_h0sq();
+    Real zsq_ = rsq_ / h0sq_; // TODO: check that nothing breaks in this normalization.
+    v0sq_ = std::min(zsq_ / (1.0 + zsq_), 1.0 - 1.0 / (gam_max_ * gam_max_));
 
     rho_floor_ *= floor_scale_fac_;
   }
@@ -140,11 +164,18 @@ class Residual {
     return mu - muhat;
   }
 
+  // KOKKOS_INLINE_FUNCTION
+  // Real compute_upper_bound(const Real h0sq) {
+  //   auto func = [=](const Real x) { return aux_func(x, h0sq); };
+  //   root_find::RootFind root;
+  //   return root.itp(func, 1.e-16, 1.0 / sqrt(h0sq), 1.e-3, -1.0);
+  // }
+
   KOKKOS_INLINE_FUNCTION
-  Real compute_upper_bound(const Real h0sq) {
-    auto func = [=](const Real x) { return aux_func(x, h0sq); };
+  Real compute_upper_bound() {
+    auto func = [=](const Real x) { return aux_func(x); };
     root_find::RootFind root;
-    return root.itp(func, 1.e-16, 1.0 / sqrt(h0sq), 1.e-3, -1.0);
+    return root.itp(func, 1.e-16, 1.0 / sqrt(h0sq_), 1.e-3, -1.0);
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -162,7 +193,9 @@ class Residual {
   }
 
  private:
-  const Real D_, q_, bsq_, bsq_rpsq_, rsq_, rbsq_, v0sq_;
+  // const Real D_, q_, bsq_, bsq_rpsq_, rsq_, rbsq_, v0sq_;
+  const Real D_, q_, bsq_, bsq_rpsq_, rsq_, rbsq_;
+  Real h0sq_, v0sq_; // these cannot be const, we need to set them after initialization.
   const Microphysics::EOS::EOS &eos_;
   const fixup::Bounds bounds_;
   const Real x1_, x2_, x3_;
@@ -171,12 +204,33 @@ class Residual {
   Real rho_floor_, e_floor_, gam_max_, e_max_;
   bool used_density_floor_, used_energy_floor_, used_energy_max_, used_gamma_max_;
 
+  // KOKKOS_FORCEINLINE_FUNCTION
+  // Real aux_func(const Real mu, const Real h0sq) {
+  //   const Real x = 1.0 / (1.0 + mu * bsq_);
+  //   const Real rbarsq = x * (rsq_ * x + mu * (1.0 + x) * rbsq_);
+  //   return mu * std::sqrt(h0sq + rbarsq) - 1.0;
+  // }
+
   KOKKOS_FORCEINLINE_FUNCTION
-  Real aux_func(const Real mu, const Real h0sq) {
+  Real aux_func(const Real mu) {
     const Real x = 1.0 / (1.0 + mu * bsq_);
     const Real rbarsq = x * (rsq_ * x + mu * (1.0 + x) * rbsq_);
-    return mu * std::sqrt(h0sq + rbarsq) - 1.0;
+    return mu * std::sqrt(h0sq_ + rbarsq) - 1.0;
   }
+
+  KOKKOS_INLINE_FUNCTION
+  Real calc_h0sq() {
+    Real tmin, rhomin, epsmin, pmin, h0;
+
+    tmin = eos_.MinimumTemperature();
+    rhomin = eos_.MinimumDensity();
+    epsmin = eos_.InternalEnergyFromDensityTemperature(rhomin, tmin, lambda_);
+    pmin = eos_.PressureFromDensityTemperature(rhomin, tmin);
+  
+    h0 = 1 + epsmin + robust::ratio(pmin, rhomin); // lowest bound for enthalpy in eos at given ye
+    return h0 * h0;
+  }
+
 };
 
 template <typename T>
@@ -297,20 +351,6 @@ class ConToPrim {
   const bool fail_on_ceilings_;
 
   KOKKOS_INLINE_FUNCTION
-  Real calc_h0sq( const Microphsyics::EOS::EOS &eos, Real Ye ) {
-    Real tmin, rhomin, epsmin, pmin, h0;
-    Real eos_lambda[2] = {Ye, 0.0}; // probably shouldn't hardcode this in the future; following current method below
-
-    tmin = eos.MinimumTemperature();
-    rhomin = eos.MinimumDensity();
-    epsmin = eos.InternalEnergyFromDensityTemperature(rhomin, tmin, eos_lambda);
-    pmin = eos.PressureFromDensityTemperature(rhomin, tmin);
-  
-    h0 = 1 + epsmin + robust::ratio(pmin, rhomin); // lowest bound for enthalpy in eos at given ye
-    return h0 * h0;
-  }
-
-  KOKKOS_INLINE_FUNCTION
   ConToPrimStatus solve(const VarAccessor<T> &v, const CellGeom &g,
                         const Microphysics::EOS::EOS &eos, const Real x1, const Real x2,
                         const Real x3) const {
@@ -374,20 +414,20 @@ class ConToPrim {
       rbsq = bdotr * bdotr;
       bsq_rpsq = bsq * rsq - rbsq;
     }
-    
-    // finding a correct lower bound for enthalpy
-    h0sq_ = calc_h0sq( eos, ye_local); //TODO: check to see if this works since h0sq_ is defined as const.
 
-    const Real zsq = rsq / h0sq_;
-    Real v0sq = std::min(zsq / (1.0 + zsq), 1.0 - 1.0 / (gam_max * gam_max));
+    // const Real zsq = rsq / h0sq_; // TODO: check that nothing breaks in this normalization.
+    // Real v0sq = std::min(zsq / (1.0 + zsq), 1.0 - 1.0 / (gam_max * gam_max));
 
-    Residual res(D, q, bsq, bsq_rpsq, rsq, rbsq, v0sq, ye_local, eos, bounds, x1, x2, x3,
+    // Residual res(D, q, bsq, bsq_rpsq, rsq, rbsq, v0sq, ye_local, eos, bounds, x1, x2, x3,
+    //              floor_scale_fac_);
+
+    Residual res(D, q, bsq, bsq_rpsq, rsq, rbsq, ye_local, eos, bounds, x1, x2, x3,
                  floor_scale_fac_);
 
     // find the upper bound
     // TODO(JCD): revisit this.  is it worth it to find the upper bound?
     //            Doesn't seem to be at a quick glance.
-    const Real mu_r = res.compute_upper_bound(h0sq_);
+    const Real mu_r = res.compute_upper_bound();
     // solve
 
     /**
