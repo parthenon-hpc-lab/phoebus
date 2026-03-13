@@ -297,6 +297,20 @@ class ConToPrim {
   const bool fail_on_ceilings_;
 
   KOKKOS_INLINE_FUNCTION
+  Real calc_h0sq( const Microphsyics::EOS::EOS &eos, Real Ye ) {
+    Real tmin, rhomin, epsmin, pmin, h0;
+    Real eos_lambda[2] = {Ye, 0.0}; // probably shouldn't hardcode this in the future; following current method below
+
+    tmin = eos.MinimumTemperature();
+    rhomin = eos.MinimumDensity();
+    epsmin = eos.InternalEnergyFromDensityTemperature(rhomin, tmin, eos_lambda);
+    pmin = eos.PressureFromDensityTemperature(rhomin, tmin);
+  
+    h0 = 1 + epsmin + robust::ratio(pmin, rhomin); // lowest bound for enthalpy in eos at given ye
+    return h0 * h0;
+  }
+
+  KOKKOS_INLINE_FUNCTION
   ConToPrimStatus solve(const VarAccessor<T> &v, const CellGeom &g,
                         const Microphysics::EOS::EOS &eos, const Real x1, const Real x2,
                         const Real x3) const {
@@ -360,6 +374,10 @@ class ConToPrim {
       rbsq = bdotr * bdotr;
       bsq_rpsq = bsq * rsq - rbsq;
     }
+    
+    // finding a correct lower bound for enthalpy
+    h0sq_ = calc_h0sq( eos, ye_local); //TODO: check to see if this works since h0sq_ is defined as const.
+
     const Real zsq = rsq / h0sq_;
     Real v0sq = std::min(zsq / (1.0 + zsq), 1.0 - 1.0 / (gam_max * gam_max));
 
@@ -369,7 +387,7 @@ class ConToPrim {
     // find the upper bound
     // TODO(JCD): revisit this.  is it worth it to find the upper bound?
     //            Doesn't seem to be at a quick glance.
-    // const Real mu_r = res.compute_upper_bound(h0sq_);
+    const Real mu_r = res.compute_upper_bound(h0sq_);
     // solve
 
     /**
@@ -383,7 +401,7 @@ class ConToPrim {
      */ 
 
     root_find::RootFind root(max_iter);
-    const Real mu = root.regula_falsi(res, 0.0, 1.0, rel_tolerance, v(c2p_mu));
+    const Real mu = root.regula_falsi(res, 0.0, mu_r, rel_tolerance, v(c2p_mu));
     v(c2p_mu) = mu;
 #if CON2PRIM_STATISTICS
     con2prim_statistics::Stats::add(root.iteration_count);
