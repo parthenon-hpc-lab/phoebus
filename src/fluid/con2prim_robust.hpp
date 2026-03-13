@@ -192,6 +192,12 @@ class Residual {
             used_gamma_max_);
   }
 
+    // FOR VERBOSE TESTING ONLY
+  KOKKOS_INLINE_FUNCTION
+  Real get_h0sq() {
+    return h0sq_;
+  }
+
  private:
   // const Real D_, q_, bsq_, bsq_rpsq_, rsq_, rbsq_, v0sq_;
   const Real D_, q_, bsq_, bsq_rpsq_, rsq_, rbsq_;
@@ -429,6 +435,9 @@ class ConToPrim {
     //            Doesn't seem to be at a quick glance.
     const Real mu_r = res.compute_upper_bound();
     // solve
+
+    // TESTING, VERBOSE OUTPUT
+    printf("%-8.5e   %-8.5e\n", res.get_h0sq(), mu_r);
 
     /**
      * TODO: implement method to find lower enthalpy bound h0 (upper root find bound) 
