@@ -46,7 +46,6 @@ struct FailFlags {
 class Residual {
  public:
 
- // TODO: check if this causes compile error (leaving const variables in constructor def.)
   KOKKOS_FUNCTION
   Residual(const Real D, const Real q, const Real bsq, const Real bsq_rpsq,
            const Real rsq, const Real rbsq, const Real v0sq, const Real Ye,
@@ -164,13 +163,6 @@ class Residual {
     return mu - muhat;
   }
 
-  // KOKKOS_INLINE_FUNCTION
-  // Real compute_upper_bound(const Real h0sq) {
-  //   auto func = [=](const Real x) { return aux_func(x, h0sq); };
-  //   root_find::RootFind root;
-  //   return root.itp(func, 1.e-16, 1.0 / sqrt(h0sq), 1.e-3, -1.0);
-  // }
-
   KOKKOS_INLINE_FUNCTION
   Real compute_upper_bound() {
     auto func = [=](const Real x) { return aux_func(x); };
@@ -231,8 +223,8 @@ class Residual {
     tmin = eos_.MinimumTemperature();
     rhomin = eos_.MinimumDensity();
     epsmin = eos_.InternalEnergyFromDensityTemperature(rhomin, tmin, lambda_);
-    pmin = eos_.PressureFromDensityTemperature(rhomin, tmin);
-  
+    pmin = eos_.PressureFromDensityTemperature(rhomin, tmin, lambda_);
+
     h0 = 1 + epsmin + robust::ratio(pmin, rhomin); // lowest bound for enthalpy in eos at given ye
     return h0 * h0;
   }
@@ -420,12 +412,6 @@ class ConToPrim {
       rbsq = bdotr * bdotr;
       bsq_rpsq = bsq * rsq - rbsq;
     }
-
-    // const Real zsq = rsq / h0sq_; // TODO: check that nothing breaks in this normalization.
-    // Real v0sq = std::min(zsq / (1.0 + zsq), 1.0 - 1.0 / (gam_max * gam_max));
-
-    // Residual res(D, q, bsq, bsq_rpsq, rsq, rbsq, v0sq, ye_local, eos, bounds, x1, x2, x3,
-    //              floor_scale_fac_);
 
     Residual res(D, q, bsq, bsq_rpsq, rsq, rbsq, ye_local, eos, bounds, x1, x2, x3,
                  floor_scale_fac_);
