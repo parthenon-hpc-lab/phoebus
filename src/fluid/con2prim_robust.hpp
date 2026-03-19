@@ -202,13 +202,6 @@ class Residual {
   Real rho_floor_, e_floor_, gam_max_, e_max_;
   bool used_density_floor_, used_energy_floor_, used_energy_max_, used_gamma_max_;
 
-  // KOKKOS_FORCEINLINE_FUNCTION
-  // Real aux_func(const Real mu, const Real h0sq) {
-  //   const Real x = 1.0 / (1.0 + mu * bsq_);
-  //   const Real rbarsq = x * (rsq_ * x + mu * (1.0 + x) * rbsq_);
-  //   return mu * std::sqrt(h0sq + rbarsq) - 1.0;
-  // }
-
   KOKKOS_FORCEINLINE_FUNCTION
   Real aux_func(const Real mu) {
     const Real x = 1.0 / (1.0 + mu * bsq_);
@@ -419,11 +412,14 @@ class ConToPrim {
     // find the upper bound
     // TODO(JCD): revisit this.  is it worth it to find the upper bound?
     //            Doesn't seem to be at a quick glance.
-    const Real mu_r = res.compute_upper_bound();
-    // solve
 
-    // TESTING, VERBOSE OUTPUT
-    printf("%-8.5e   %-8.5e\n", res.get_h0sq(), mu_r);
+    // conditional from Kastaun et al. 2021, we need a tighter upper bound if r > h0 due to sharp kink in lorentz factor.
+    Real mu_r;
+    if ( rsq >= res.get_h0sq() )
+      mu_r = res.compute_upper_bound();
+    else
+      mu_r = 1 / sqrt(res.get_h0sq());
+    // solve
 
     /**
      * TODO: implement method to find lower enthalpy bound h0 (upper root find bound) 
@@ -454,8 +450,10 @@ class ConToPrim {
     if (pye > 0) eos_lambda[0] = v(pye);
     eos_lambda[1] = std::log10(v(tmp)); // initial guess
     v(peng) = res.ehat_mu(mu, qbar, rbarsq, vsq, W);
+    // TESTING, VERBOSE OUTPUT
+    printf("con2prim: %-8.5e   %-8.5e   %-8.5e   %-8.5e   %-8.5e\n", res.get_h0sq(), rsq, mu_r, v(peng), ye_local);
     v(tmp) = eos.TemperatureFromDensityInternalEnergy(v(prho), v(peng), eos_lambda);
-    v(peng) *= v(prho);
+    v(peng) *= v(prho); // conversion to u
     v(prs) = eos.PressureFromDensityTemperature(v(prho), v(tmp), eos_lambda);
     v(gm1) = eos.BulkModulusFromDensityTemperature(v(prho), v(tmp), eos_lambda) / v(prs);
     PARTHENON_DEBUG_REQUIRE(v(prs) > robust::SMALL(), "Pressure must be positive");
