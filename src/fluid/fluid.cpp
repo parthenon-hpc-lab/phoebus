@@ -499,6 +499,7 @@ TaskStatus ConservedToPrimitiveRobust(T *rc, const IndexRange &ib, const IndexRa
   auto eos = eos_pkg->Param<Microphysics::EOS::EOS>("d.EOS");
   auto geom = Geometry::GetCoordinateSystem(rc);
   auto coords = pmb->coords;
+  const Real h_min = eos_pkg->Param<Real>("h_min");
 
   // TODO(JCD): move the setting of this into the solver so we can call this on MeshData
   auto fail = rc->Get(internal_variables::fail::name()).data;
@@ -507,7 +508,7 @@ TaskStatus ConservedToPrimitiveRobust(T *rc, const IndexRange &ib, const IndexRa
       DEFAULT_LOOP_PATTERN, "ConToPrim::Solve", DevExecSpace(), 0, invert.NumBlocks() - 1,
       kb.s, kb.e, jb.s, jb.e, ib.s, ib.e,
       KOKKOS_LAMBDA(const int b, const int k, const int j, const int i) {
-        auto status = invert(geom, eos, coords, k, j, i);
+        auto status = invert(geom, eos, coords, h_min, k, j, i);
         fail(k, j, i) = (status == con2prim_robust::ConToPrimStatus::success
                              ? con2prim_robust::FailFlags::success
                              : con2prim_robust::FailFlags::fail);

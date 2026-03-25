@@ -349,6 +349,7 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
   auto eos = eos_pkg->Param<EOS>("d.EOS");
   auto geom = Geometry::GetCoordinateSystem(rc);
   Bounds *pbounds = fix_pkg->MutableParam<Bounds>("bounds");
+  const Real h_min = eos_pkg->Param<Real>("h_min");
 
   // BLB: Setting EOS bnds for Ceilings/Floors here.
   pbounds->SetEOSBnds(eos_pkg);
@@ -439,6 +440,8 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
           du = std::max<Real>(du, sie_floor * drho);
         }
 
+        // printf("\tfixup.cpp: %-8.5e   %-8.5e   %-8.5e   %-8.5e\n", sie_floor, u_floor_max, du, drho);
+
         Real dcrho, dS[3], dBcons[3], dtau, dyecons;
         Real bp[3] = {0};
         if (pb_hi > 0) {
@@ -469,7 +472,7 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
           }
 
           // fluid c2p
-          auto status = invert(geom, eos, coords, k, j, i);
+          auto status = invert(geom, eos, coords, h_min, k, j, i);
           if (status == con2prim_robust::ConToPrimStatus::failure) {
             // If fluid c2p fails, set to floors
             v(b, prho, k, j, i) = drho;

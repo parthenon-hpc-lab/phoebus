@@ -46,29 +46,50 @@ struct FailFlags {
 class Residual {
  public:
 
-  KOKKOS_FUNCTION
-  Residual(const Real D, const Real q, const Real bsq, const Real bsq_rpsq,
-           const Real rsq, const Real rbsq, const Real v0sq, const Real Ye,
-           const Microphysics::EOS::EOS &eos, const fixup::Bounds &bnds, const Real x1,
-           const Real x2, const Real x3, const Real floor_scale_fac)
-      : D_(D), q_(q), bsq_(bsq), bsq_rpsq_(bsq_rpsq), rsq_(rsq), rbsq_(rbsq), v0sq_(v0sq),
-        eos_(eos), bounds_(bnds), x1_(x1), x2_(x2), x3_(x3),
-        floor_scale_fac_(floor_scale_fac) {
-    lambda_[0] = Ye;
-    Real garbage = 0.0;
-    bounds_.GetFloors(x1_, x2_, x3_, rho_floor_, garbage);
-    bounds_.GetCeilings(x1_, x2_, x3_, gam_max_, e_max_);
+  // KOKKOS_FUNCTION
+  // Residual(const Real D, const Real q, const Real bsq, const Real bsq_rpsq,
+  //          const Real rsq, const Real rbsq, const Real v0sq, const Real Ye,
+  //          const Microphysics::EOS::EOS &eos, const fixup::Bounds &bnds, const Real x1,
+  //          const Real x2, const Real x3, const Real floor_scale_fac)
+  //     : D_(D), q_(q), bsq_(bsq), bsq_rpsq_(bsq_rpsq), rsq_(rsq), rbsq_(rbsq), v0sq_(v0sq),
+  //       eos_(eos), bounds_(bnds), x1_(x1), x2_(x2), x3_(x3),
+  //       floor_scale_fac_(floor_scale_fac) {
+  //   lambda_[0] = Ye;
+  //   Real garbage = 0.0;
+  //   bounds_.GetFloors(x1_, x2_, x3_, rho_floor_, garbage);
+  //   bounds_.GetCeilings(x1_, x2_, x3_, gam_max_, e_max_);
 
-    rho_floor_ *= floor_scale_fac_;
-  }
+  //   rho_floor_ *= floor_scale_fac_;
+  // }
 
   // NEW: overloaded constructor that handles calculation of h0sq, v0sq internally
+  // KOKKOS_FUNCTION
+  // Residual(const Real D, const Real q, const Real bsq, const Real bsq_rpsq,
+  //          const Real rsq, const Real rbsq, const Real Ye,
+  //          const Microphysics::EOS::EOS &eos, const fixup::Bounds &bnds, const Real x1,
+  //          const Real x2, const Real x3, const Real floor_scale_fac)
+  //     : D_(D), q_(q), bsq_(bsq), bsq_rpsq_(bsq_rpsq), rsq_(rsq), rbsq_(rbsq),
+  //       eos_(eos), bounds_(bnds), x1_(x1), x2_(x2), x3_(x3),
+  //       floor_scale_fac_(floor_scale_fac) {
+
+  //   lambda_[0] = Ye;
+  //   Real garbage = 0.0;
+  //   bounds_.GetFloors(x1_, x2_, x3_, rho_floor_, garbage);
+  //   bounds_.GetCeilings(x1_, x2_, x3_, gam_max_, e_max_);
+
+  //   h0sq_ = calc_h0sq();
+  //   Real zsq_ = rsq_ / h0sq_; // TODO: check that nothing breaks in this normalization.
+  //   v0sq_ = std::min(zsq_ / (1.0 + zsq_), 1.0 - 1.0 / (gam_max_ * gam_max_));
+
+  //   rho_floor_ *= floor_scale_fac_;
+  // }
+
   KOKKOS_FUNCTION
   Residual(const Real D, const Real q, const Real bsq, const Real bsq_rpsq,
-           const Real rsq, const Real rbsq, const Real Ye,
+           const Real rsq, const Real rbsq, const Real h0, const Real Ye,
            const Microphysics::EOS::EOS &eos, const fixup::Bounds &bnds, const Real x1,
            const Real x2, const Real x3, const Real floor_scale_fac)
-      : D_(D), q_(q), bsq_(bsq), bsq_rpsq_(bsq_rpsq), rsq_(rsq), rbsq_(rbsq),
+      : D_(D), q_(q), bsq_(bsq), bsq_rpsq_(bsq_rpsq), rsq_(rsq), rbsq_(rbsq), h0sq_(h0 * h0),
         eos_(eos), bounds_(bnds), x1_(x1), x2_(x2), x3_(x3),
         floor_scale_fac_(floor_scale_fac) {
 
@@ -77,7 +98,6 @@ class Residual {
     bounds_.GetFloors(x1_, x2_, x3_, rho_floor_, garbage);
     bounds_.GetCeilings(x1_, x2_, x3_, gam_max_, e_max_);
 
-    h0sq_ = calc_h0sq();
     Real zsq_ = rsq_ / h0sq_; // TODO: check that nothing breaks in this normalization.
     v0sq_ = std::min(zsq_ / (1.0 + zsq_), 1.0 - 1.0 / (gam_max_ * gam_max_));
 
@@ -209,18 +229,48 @@ class Residual {
     return mu * std::sqrt(h0sq_ + rbarsq) - 1.0;
   }
 
-  KOKKOS_INLINE_FUNCTION
-  Real calc_h0sq() {
-    Real tmin, rhomin, epsmin, pmin, h0;
+  // KOKKOS_INLINE_FUNCTION
+  // Real calc_h0sq() { // TODO: add option here for global search or edge case...
+  //   int n; // should be set to resolve the highest dimension of the eos table, usually density.
+  //   Real T, rho, ye, dT, drho, dye; 
+  //   Real eps, P, h0;
+  //   Real lambda[2];
 
-    tmin = eos_.MinimumTemperature();
-    rhomin = eos_.MinimumDensity();
-    epsmin = eos_.InternalEnergyFromDensityTemperature(rhomin, tmin, lambda_);
-    pmin = eos_.PressureFromDensityTemperature(rhomin, tmin, lambda_);
+  //   n = 250; // maybe this shouldn't be hardcoded in the future?
+  //   h0 = 1.0; // initial guess for minimum enthalpy, sufficient in ideal cases.
 
-    h0 = 1 + epsmin + robust::ratio(pmin, rhomin); // lowest bound for enthalpy in eos at given ye
-    return h0 * h0;
-  }
+  //   // spacing for each dimension (i.e. np.linspace)
+  //   dT = (eos_.TMax() - eos_.TMin()) / n;
+  //   drho = (eos_.rhoMax() - eos_.rhoMin()) / n;
+  //   dye = (eos_.YeMax() - eos_.YeMin()) / (n / 2); // we don't need to resolve ye as much
+
+  //   T = eos_.TMin();
+  //   rho = eos_.rhoMin();
+  //   ye = eos_.YeMin();
+    
+  //   // WIP: update this to find a global lower bound (still assuming it lies along the minimum edge of the SC-EOS table)
+  //   // realistically this should be something that happens once in something like singularity-EOS and is then callable from there...
+  //   // is there a way to refactor this to be cleaner? this is bad readability.
+    
+  //   LOOP(y, n/2) {
+  //     lambda[0] = ye;
+      
+  //     LOOP(r, n) {
+  //       LOOP(t, n) {
+
+  //           eps = eos_.InternalEnergyFromDensityTemperature(r, T, lambda);
+  //           P = eos_.PressureFromDensityTemperature(r, T, lambda);
+  //           h0 = std::min(h0, 1 + eps + robust::ratio(P, r));
+
+  //           T += dT;
+  //       }
+  //       rho += drho;
+  //     }
+  //     ye += dye;
+  //   }    
+    
+  //   return h0 * h0;
+  // }
 
 };
 
@@ -320,6 +370,19 @@ class ConToPrim {
     return solve(v, g, eos, x1, x2, x3);
   }
 
+  template <typename CoordinateSystem, class... Args>
+  KOKKOS_INLINE_FUNCTION ConToPrimStatus operator()(const CoordinateSystem &geom,
+                                                    const Microphysics::EOS::EOS &eos,
+                                                    const Coordinates_t &coords, const Real h0,
+                                                    Args &&...args) const {
+    VarAccessor<T> v(var, std::forward<Args>(args)...);
+    CellGeom g(geom, std::forward<Args>(args)...);
+    Real x1 = coords.Xc<1>(std::forward<Args>(args)...);
+    Real x2 = coords.Xc<2>(std::forward<Args>(args)...);
+    Real x3 = coords.Xc<3>(std::forward<Args>(args)...);
+    return solve(v, g, eos, x1, x2, x3, h0);
+  }
+
   int NumBlocks() { return var.GetDim(5); }
 
  private:
@@ -343,8 +406,9 @@ class ConToPrim {
 
   KOKKOS_INLINE_FUNCTION
   ConToPrimStatus solve(const VarAccessor<T> &v, const CellGeom &g,
-                        const Microphysics::EOS::EOS &eos, const Real x1, const Real x2,
-                        const Real x3) const {
+                        const Microphysics::EOS::EOS &eos,
+                        const Real x1, const Real x2,
+                        const Real x3, const Real h0 = 1.0) const {
     int num_nans = std::isnan(v(crho)) + std::isnan(v(cmom_lo)) + std::isnan(v(ceng));
     if (num_nans > 0) return ConToPrimStatus::failure;
     const Real igdet = 1.0 / g.gdet;
@@ -406,7 +470,7 @@ class ConToPrim {
       bsq_rpsq = bsq * rsq - rbsq;
     }
 
-    Residual res(D, q, bsq, bsq_rpsq, rsq, rbsq, ye_local, eos, bounds, x1, x2, x3,
+    Residual res(D, q, bsq, bsq_rpsq, rsq, rbsq, h0, ye_local, eos, bounds, x1, x2, x3,
                  floor_scale_fac_);
 
     // find the upper bound

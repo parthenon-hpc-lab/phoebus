@@ -25,6 +25,9 @@
 #include "phoebus_utils/unit_conversions.hpp"
 #include "phoebus_utils/variables.hpp"
 
+// inspired by SPACELOOP in geometry utils, util for global lower bound for enthalpy
+#define LOOP(i, n) for (int i = 0; i < n; i++)
+
 using namespace singularity;
 
 namespace Microphysics {
@@ -65,6 +68,9 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   Real T_max;
   Real ye_min;
   Real ye_max;
+  Real h_min; // lower enthalpy bound
+  Real T, dT, rho, drho, ye, dye, eps, P; // for our bound search, temps
+  int n;
 
   std::string eos_type = pin->GetString(block_name, std::string("type"));
   params.Add("type", eos_type);
@@ -93,6 +99,8 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
     T_max = eos_host.TemperatureFromDensityInternalEnergy(rho_max, sie_max, lambda);
     ye_min = 0.01;
     ye_max = 1.0;
+    h_min = 1.0; // is this the right guess for an ideal gas case?
+
 #ifdef SPINER_USE_HDF
   } else if (eos_type == StellarCollapse::EosType()) {
     // We request that Ye and temperature exist, but do not provide them.
@@ -154,6 +162,42 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
     rho_max = eos_sc.rhoMax() / rho_unit;
     ye_min = eos_sc.YeMin();
     ye_max = eos_sc.YeMax();
+
+
+    // new calculation to find lower bound for enthalpy!
+    n = 250; // maybe this shouldn't be hardcoded in the future?
+    h_min = 1.0; // initial guess for minimum enthalpy, sufficient in ideal cases.
+    eps = 0.0;
+
+    // spacing for each dimension (i.e. np.linspace)
+    dT = (T_max - T_min) / n;
+    drho = (rho_max - rho_min) / n;
+    dye = (ye_max - ye_min) / (n / 2); // we don't need to resolve ye as much
+
+    T = T_min;
+    rho = rho_min;
+    ye = ye_min;
+    
+    // WIP: update this to find a global lower bound (still assuming it lies along the minimum edge of the SC-EOS table)
+    // realistically this should be something that happens once in something like singularity-EOS and is then callable from there...
+    // is there a way to refactor this to be cleaner? this is bad readability.
+    
+    LOOP(y, n/2) {
+      lambda[0] = ye;
+      LOOP(r, n) {
+        LOOP(t, n) {
+
+            eps = eos_sc.InternalEnergyFromDensityTemperature(rho, T, lambda) / sie_unit;
+            P = eos_sc.PressureFromDensityTemperature(rho, T, lambda) / press_unit;
+            h_min = std::min(h_min, 1 + eps + robust::ratio(P, rho));
+
+            T += dT;
+        }
+        rho += drho;
+      }
+      ye += dye;
+    }
+
 #endif
   } else {
     std::stringstream error_mesg;
@@ -166,6 +210,8 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
     PARTHENON_THROW(error_mesg);
   }
 
+  printf("h0: %5.8e\n\n", h_min); // VERBOSE
+
   params.Add("needs_ye", needs_ye);
   params.Add("provides_entropy", provides_entropy);
 
@@ -177,6 +223,7 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   params.Add("rho_max", rho_max);
   params.Add("ye_min", ye_min);
   params.Add("ye_max", ye_max);
+  params.Add("h_min", h_min);
 
   return pkg;
 }
