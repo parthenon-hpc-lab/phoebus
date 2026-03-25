@@ -204,8 +204,6 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
     PARTHENON_THROW(error_mesg);
   }
 
-  printf("h0: %5.8e\n\n", h_min); // TESTING, VERBOSE
-
   params.Add("needs_ye", needs_ye);
   params.Add("provides_entropy", provides_entropy);
 

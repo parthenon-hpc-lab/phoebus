@@ -399,16 +399,6 @@ class ConToPrim {
     else
       mu_r = 1 / sqrt(res.get_h0sq());
 
-    /**
-     * TODO: implement method to find lower enthalpy bound h0 (upper root find bound) 
-     * 
-     * Katsaun et al. 2021 only assumes h > 0, not h ≥ 1; we shouldn't have a hardcoded upper bound here.
-     * stellar collapse eos can have h < 1 due to included nuclear binding energies (e.g. Steiner et al. 
-     * 2012), this breaks our root find when mapping onto the gr grid at initialization.
-     * 
-     * can probably be resolved with an eos-conscious method using primitives (P, rho, eps) passed into here, solution tbd. 
-     */ 
-
     root_find::RootFind root(max_iter);
     const Real mu = root.regula_falsi(res, 0.0, mu_r, rel_tolerance, v(c2p_mu));
     v(c2p_mu) = mu;
@@ -428,8 +418,6 @@ class ConToPrim {
     if (pye > 0) eos_lambda[0] = v(pye);
     eos_lambda[1] = std::log10(v(tmp)); // initial guess
     v(peng) = res.ehat_mu(mu, qbar, rbarsq, vsq, W);
-    // TESTING, VERBOSE OUTPUT
-    printf("con2prim: %-8.5e   %-8.5e   %-8.5e   %-8.5e   %-8.5e\n", res.get_h0sq(), rsq, mu_r, v(peng), ye_local);
     v(tmp) = eos.TemperatureFromDensityInternalEnergy(v(prho), v(peng), eos_lambda);
     v(peng) *= v(prho); // conversion to u
     v(prs) = eos.PressureFromDensityTemperature(v(prho), v(tmp), eos_lambda);
