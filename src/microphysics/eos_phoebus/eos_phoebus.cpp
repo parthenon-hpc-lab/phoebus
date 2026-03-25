@@ -165,7 +165,7 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
 
 
     // new calculation to find lower bound for enthalpy!
-    n = 250; // maybe this shouldn't be hardcoded in the future?
+    n = 500; // maybe this shouldn't be hardcoded in the future?
     h_min = 1.0; // initial guess for minimum enthalpy, sufficient in ideal cases.
     eps = 0.0;
 
@@ -173,24 +173,18 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
     dT = (T_max - T_min) / n;
     drho = (rho_max - rho_min) / n;
     dye = (ye_max - ye_min) / (n / 2); // we don't need to resolve ye as much
-
+    // initial conditions
     T = T_min;
     rho = rho_min;
     ye = ye_min;
-    
-    // WIP: update this to find a global lower bound (still assuming it lies along the minimum edge of the SC-EOS table)
-    // realistically this should be something that happens once in something like singularity-EOS and is then callable from there...
-    // is there a way to refactor this to be cleaner? this is bad readability.
     
     LOOP(y, n/2) {
       lambda[0] = ye;
       LOOP(r, n) {
         LOOP(t, n) {
-
             eps = eos_sc.InternalEnergyFromDensityTemperature(rho, T, lambda) / sie_unit;
             P = eos_sc.PressureFromDensityTemperature(rho, T, lambda) / press_unit;
             h_min = std::min(h_min, 1 + eps + robust::ratio(P, rho));
-
             T += dT;
         }
         rho += drho;
@@ -210,7 +204,7 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
     PARTHENON_THROW(error_mesg);
   }
 
-  printf("h0: %5.8e\n\n", h_min); // VERBOSE
+  printf("h0: %5.8e\n\n", h_min); // TESTING, VERBOSE
 
   params.Add("needs_ye", needs_ye);
   params.Add("provides_entropy", provides_entropy);
