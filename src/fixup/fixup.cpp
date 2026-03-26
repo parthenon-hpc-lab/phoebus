@@ -435,7 +435,7 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
         Real drho = rho_floor_max - v(b, prho, k, j, i);
         Real du = u_floor_max - v(b, peng, k, j, i);
 
-	if (drho > 0. || du > 0.) {
+        if (drho > 0. || du > 0.) {
           floor_applied = true;
           drho = std::max<Real>(drho, du / sie_floor);
           du = std::max<Real>(du, sie_floor * drho);

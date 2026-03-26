@@ -45,15 +45,14 @@ struct FailFlags {
 
 class Residual {
  public:
-
   // new constructor that allows for a value of h0 to be passed in
   KOKKOS_FUNCTION
   Residual(const Real D, const Real q, const Real bsq, const Real bsq_rpsq,
            const Real rsq, const Real rbsq, const Real h0, const Real Ye,
            const Microphysics::EOS::EOS &eos, const fixup::Bounds &bnds, const Real x1,
            const Real x2, const Real x3, const Real floor_scale_fac)
-      : D_(D), q_(q), bsq_(bsq), bsq_rpsq_(bsq_rpsq), rsq_(rsq), rbsq_(rbsq), h0sq_(h0 * h0),
-        eos_(eos), bounds_(bnds), x1_(x1), x2_(x2), x3_(x3),
+      : D_(D), q_(q), bsq_(bsq), bsq_rpsq_(bsq_rpsq), rsq_(rsq), rbsq_(rbsq),
+        h0sq_(h0 * h0), eos_(eos), bounds_(bnds), x1_(x1), x2_(x2), x3_(x3),
         floor_scale_fac_(floor_scale_fac) {
 
     lambda_[0] = Ye;
@@ -61,7 +60,7 @@ class Residual {
     bounds_.GetFloors(x1_, x2_, x3_, rho_floor_, garbage);
     bounds_.GetCeilings(x1_, x2_, x3_, gam_max_, e_max_);
 
-    Real zsq_ = rsq_ / h0sq_; 
+    Real zsq_ = rsq_ / h0sq_;
     v0sq_ = std::min(zsq_ / (1.0 + zsq_), 1.0 - 1.0 / (gam_max_ * gam_max_));
 
     rho_floor_ *= floor_scale_fac_;
@@ -169,9 +168,7 @@ class Residual {
 
   // new accessor for enthalpy lower bound
   KOKKOS_INLINE_FUNCTION
-  Real get_h0sq() {
-    return h0sq_;
-  }
+  Real get_h0sq() { return h0sq_; }
 
  private:
   const Real D_, q_, bsq_, bsq_rpsq_, rsq_, rbsq_;
@@ -190,7 +187,6 @@ class Residual {
     const Real rbarsq = x * (rsq_ * x + mu * (1.0 + x) * rbsq_);
     return mu * std::sqrt(h0sq_ + rbarsq) - 1.0;
   }
-
 };
 
 template <typename T>
@@ -292,8 +288,8 @@ class ConToPrim {
   template <typename CoordinateSystem, class... Args>
   KOKKOS_INLINE_FUNCTION ConToPrimStatus operator()(const CoordinateSystem &geom,
                                                     const Microphysics::EOS::EOS &eos,
-                                                    const Coordinates_t &coords, const Real h0,
-                                                    Args &&...args) const {
+                                                    const Coordinates_t &coords,
+                                                    const Real h0, Args &&...args) const {
     VarAccessor<T> v(var, std::forward<Args>(args)...);
     CellGeom g(geom, std::forward<Args>(args)...);
     Real x1 = coords.Xc<1>(std::forward<Args>(args)...);
@@ -325,8 +321,7 @@ class ConToPrim {
 
   KOKKOS_INLINE_FUNCTION
   ConToPrimStatus solve(const VarAccessor<T> &v, const CellGeom &g,
-                        const Microphysics::EOS::EOS &eos,
-                        const Real x1, const Real x2,
+                        const Microphysics::EOS::EOS &eos, const Real x1, const Real x2,
                         const Real x3, const Real h0 = 1.0) const {
     int num_nans = std::isnan(v(crho)) + std::isnan(v(cmom_lo)) + std::isnan(v(ceng));
     if (num_nans > 0) return ConToPrimStatus::failure;
@@ -392,9 +387,10 @@ class ConToPrim {
     Residual res(D, q, bsq, bsq_rpsq, rsq, rbsq, h0, ye_local, eos, bounds, x1, x2, x3,
                  floor_scale_fac_);
 
-    // conditional from Kastaun et al. 2021, we need a tighter upper bound if r > h0 due to sharp kink in lorentz factor.
+    // conditional from Kastaun et al. 2021, we need a tighter upper bound if r > h0 due
+    // to sharp kink in lorentz factor.
     Real mu_r;
-    if ( rsq >= res.get_h0sq() )
+    if (rsq >= res.get_h0sq())
       mu_r = res.compute_upper_bound(); // we don't always need a second root find
     else
       mu_r = 1 / sqrt(res.get_h0sq());

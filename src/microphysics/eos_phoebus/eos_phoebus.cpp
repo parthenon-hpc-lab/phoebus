@@ -68,7 +68,7 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   Real T_max;
   Real ye_min;
   Real ye_max;
-  Real h_min; // lower enthalpy bound
+  Real h_min;                             // lower enthalpy bound
   Real T, dT, rho, drho, ye, dye, eps, P; // for our bound search, temps
   int n;
 
@@ -163,9 +163,8 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
     ye_min = eos_sc.YeMin();
     ye_max = eos_sc.YeMax();
 
-
     // new calculation to find lower bound for enthalpy!
-    n = 500; // maybe this shouldn't be hardcoded in the future?
+    n = 500;     // maybe this shouldn't be hardcoded in the future?
     h_min = 1.0; // initial guess for minimum enthalpy, sufficient in ideal cases.
     eps = 0.0;
 
@@ -177,15 +176,15 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
     T = T_min;
     rho = rho_min;
     ye = ye_min;
-    
-    LOOP(y, n/2) {
+
+    LOOP(y, n / 2) {
       lambda[0] = ye;
       LOOP(r, n) {
         LOOP(t, n) {
-            eps = eos_sc.InternalEnergyFromDensityTemperature(rho, T, lambda) / sie_unit;
-            P = eos_sc.PressureFromDensityTemperature(rho, T, lambda) / press_unit;
-            h_min = std::min(h_min, 1 + eps + robust::ratio(P, rho));
-            T += dT;
+          eps = eos_sc.InternalEnergyFromDensityTemperature(rho, T, lambda) / sie_unit;
+          P = eos_sc.PressureFromDensityTemperature(rho, T, lambda) / press_unit;
+          h_min = std::min(h_min, 1 + eps + robust::ratio(P, rho));
+          T += dT;
         }
         rho += drho;
       }
