@@ -23,7 +23,7 @@ jobs:
           run: export DEBIAN_FRONTEND=noninteractive
         - name: install dependencies
           run: |
-            pip install sphinx
+            pip install "sphinx<8.2" # pinned to make multiversion work 
             pip install sphinx-sitemap
             pip install sphinx-rtd-theme
             pip install sphinx-multiversion
