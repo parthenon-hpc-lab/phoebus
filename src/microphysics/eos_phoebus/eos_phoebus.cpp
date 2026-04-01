@@ -65,6 +65,9 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   Real T_max;
   Real ye_min;
   Real ye_max;
+  Real h_min;                             // lower enthalpy bound
+  Real T, dT, rho, drho, ye, dye, eps, P; // for our bound search, temps
+  int n;
 
   std::string eos_type = pin->GetString(block_name, std::string("type"));
   params.Add("type", eos_type);
@@ -93,6 +96,8 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
     T_max = eos_host.TemperatureFromDensityInternalEnergy(rho_max, sie_max, lambda);
     ye_min = 0.01;
     ye_max = 1.0;
+    h_min = 1.0; // is this the right guess for an ideal gas case?
+
 #ifdef SPINER_USE_HDF
   } else if (eos_type == StellarCollapse::EosType()) {
     // We request that Ye and temperature exist, but do not provide them.
@@ -154,6 +159,39 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
     rho_max = eos_sc.rhoMax() / rho_unit;
     ye_min = eos_sc.YeMin();
     ye_max = eos_sc.YeMax();
+
+    // new calculation to find lower bound for enthalpy!
+    n = 200;     // maybe this shouldn't be hardcoded in the future?
+    h_min = 1.0; // initial guess for minimum enthalpy, sufficient in ideal cases.
+    eps = 0.0;
+
+    // spacing for each dimension (logspace for rho, T; linspace for ye)
+    // we need to use physical (i.e. not scaled) units here for eos_sc calcs
+    dT = (log10(eos_sc.TMax()) - log10(eos_sc.TMin())) / (n - 1);
+    drho = (log10(eos_sc.rhoMax()) - log10(eos_sc.rhoMin())) / (n - 1);
+    dye = (ye_max - ye_min) / ((n / 2) - 1); // we don't need to resolve ye as much
+
+    // initial conditions
+    T = eos_sc.TMin();
+    rho = eos_sc.rhoMin();
+    ye = ye_min;
+
+    for (int y = 0; y < n / 2; y++) {
+      lambda[0] = ye;
+      for (int r = 0; r < n; r++) {
+        for (int t = 0; t < n; t++) {
+          eps = eos_sc.InternalEnergyFromDensityTemperature(rho, T, lambda) / sie_unit;
+          P = eos_sc.PressureFromDensityTemperature(rho, T, lambda) / press_unit;
+          h_min = std::min(h_min, 1 + eps + robust::ratio(P, rho));
+          T *= pow(10.0, dT); // log spacing
+        }
+        T = eos_sc.TMin();      // "reset"
+        rho *= pow(10.0, drho); // log spacing
+      }
+      rho = eos_sc.rhoMin(); // "reset"
+      ye += dye;             // linear spacing
+    }
+
 #endif
   } else {
     std::stringstream error_mesg;
@@ -177,6 +215,7 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   params.Add("rho_max", rho_max);
   params.Add("ye_min", ye_min);
   params.Add("ye_max", ye_max);
+  params.Add("h_min", h_min);
 
   return pkg;
 }
