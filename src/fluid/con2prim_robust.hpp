@@ -390,10 +390,11 @@ class ConToPrim {
     // conditional from Kastaun et al. 2021, we need a tighter upper bound if r > h0 due
     // to sharp kink in lorentz factor.
     Real mu_r;
-    if (rsq >= res.get_h0sq())
+    if (rsq >= res.get_h0sq()) {
       mu_r = res.compute_upper_bound(); // we don't always need a second root find
-    else
+    } else {
       mu_r = 1 / sqrt(res.get_h0sq());
+    }
 
     root_find::RootFind root(max_iter);
     const Real mu = root.regula_falsi(res, 0.0, mu_r, rel_tolerance, v(c2p_mu));

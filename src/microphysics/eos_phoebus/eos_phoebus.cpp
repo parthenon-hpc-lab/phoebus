@@ -25,9 +25,6 @@
 #include "phoebus_utils/unit_conversions.hpp"
 #include "phoebus_utils/variables.hpp"
 
-// inspired by SPACELOOP in geometry utils, util for global lower bound for enthalpy
-#define LOOP(i, n) for (int i = 0; i < n; i++)
-
 using namespace singularity;
 
 namespace Microphysics {
@@ -164,31 +161,35 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
     ye_max = eos_sc.YeMax();
 
     // new calculation to find lower bound for enthalpy!
-    n = 500;     // maybe this shouldn't be hardcoded in the future?
+    n = 200;     // maybe this shouldn't be hardcoded in the future?
     h_min = 1.0; // initial guess for minimum enthalpy, sufficient in ideal cases.
     eps = 0.0;
 
-    // spacing for each dimension (i.e. np.linspace)
-    dT = (T_max - T_min) / n;
-    drho = (rho_max - rho_min) / n;
-    dye = (ye_max - ye_min) / (n / 2); // we don't need to resolve ye as much
+    // spacing for each dimension (logspace for rho, T; linspace for ye)
+    // we need to use physical (i.e. not scaled) units here for eos_sc calcs
+    dT = (log10(eos_sc.TMax()) - log10(eos_sc.TMin())) / (n - 1);
+    drho = (log10(eos_sc.rhoMax()) - log10(eos_sc.rhoMin())) / (n - 1);
+    dye = (ye_max - ye_min) / ((n / 2) - 1); // we don't need to resolve ye as much
+
     // initial conditions
-    T = T_min;
-    rho = rho_min;
+    T = eos_sc.TMin();
+    rho = eos_sc.rhoMin();
     ye = ye_min;
 
-    LOOP(y, n / 2) {
+    for (int y = 0; y < n / 2; y++) {
       lambda[0] = ye;
-      LOOP(r, n) {
-        LOOP(t, n) {
+      for (int r = 0; r < n; r++) {
+        for (int t = 0; t < n; t++) {
           eps = eos_sc.InternalEnergyFromDensityTemperature(rho, T, lambda) / sie_unit;
           P = eos_sc.PressureFromDensityTemperature(rho, T, lambda) / press_unit;
           h_min = std::min(h_min, 1 + eps + robust::ratio(P, rho));
-          T += dT;
+          T *= pow(10.0, dT); // log spacing
         }
-        rho += drho;
+        T = eos_sc.TMin();      // "reset"
+        rho *= pow(10.0, drho); // log spacing
       }
-      ye += dye;
+      rho = eos_sc.rhoMin(); // "reset"
+      ye += dye;             // linear spacing
     }
 
 #endif
