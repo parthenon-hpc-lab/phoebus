@@ -36,7 +36,8 @@ variables = p.density,  &
       	    g.n.coord
 
 file_type   = hdf5      # Tabular data dump
-dt          = 0.005     # time increment between outputs
+dn = 2
+#dt          = 0.005     # time increment between outputs
 
 <parthenon/time>
 nlim        = -1        # cycle limit
@@ -58,7 +59,7 @@ ox1_bc      = gr_outflow    # Outer-X1 boundary condition flag
 
 nx2         = 64            # Number of zones in X2-direction
 x2min       = 0             # minimum value of X2
-x2max       = 3.1415        # maximum value of X2. Pi
+x2max       = 1             # maximum value of X2. 
 ix2_bc      = reflect       # Inner-X2 boundary condition flag
 ox2_bc      = reflect       # Outer-X2 boundary condition flag
 
@@ -100,27 +101,26 @@ xorder = 2
 cfl = 1e-2
 riemann = llf
 recon = linear
+c2p_tol = 1.e-8
+c2p_method = robust
 c2p_max_iter = 100
 Ye = false
 
 <fixup>
 enable_floors = true
-enable_mhd_floors = true
 enable_ceilings = true
-enable_flux_fixup = true
-enable_c2p_fixup = true
-floor_type = ExpX1RhoSie
-rho0_floor = 1.0e-8
-sie0_floor = 1.0e-3
-rho_exp_floor = -2.0
-sie_exp_floor = -1.0
+enable_flux_fixup = false
+enable_c2p_fixup = false
+floor_type = ConstantRhoSie
+rho0_floor = 1.0e-12
+sie0_floor = 1.0e-12
 ceiling_type = ConstantGamSie
-sie0_ceiling = 1.0
+sie0_ceiling = 10.0
 gam0_ceiling = 10.0
 
 <star_shredder>
 rho_star = 1.;
-ringwidth = 1.;
-ringtheta = 1.57;
+ringwidth = 1.5;
+ringtheta = 0.79;
 ringphi = 3.14;
 sep = 12.;
