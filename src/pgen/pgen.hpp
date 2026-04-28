@@ -40,6 +40,7 @@ using namespace parthenon::package::prelude;
   PROBLEM(kelvin_helmholtz)                                                              \
   PROBLEM(rhs_tester)                                                                    \
   PROBLEM(sedov)                                                                         \
+  PROBLEM(star_shredder)                                                                 \
   PROBLEM(blandford_mckee)                                                               \
   PROBLEM(bondi)                                                                         \
   PROBLEM(radiation_advection)                                                           \
