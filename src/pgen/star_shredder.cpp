@@ -88,11 +88,12 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
       "Phoebus::ProblemGenerator::star_shredder", kb.s, kb.e, jb.s, jb.e, ib.s, ib.e,
       KOKKOS_LAMBDA(const int k, const int j, const int i) {
         // Coordinate transformations
-        Real x1 = coords.Xc<1>(i);
-        Real x2 = coords.Xc<2>(j);
-        Real phi = coords.Xc<3>(k);
+        Real x1 = coords.Xc<1>(k, j, i);
+        Real x2 = coords.Xc<2>(k, j, i);
+        Real x3 = coords.Xc<3>(k, j, i);
         Real r = tr.bl_radius(x1);
         Real th = tr.bl_theta(x1, x2);
+        Real &phi = x3;
         Real x = r * std::sin(th) * std::cos(phi);
         Real y = r * std::sin(th) * std::sin(phi);
         Real z = r * std::cos(th);
@@ -103,7 +104,6 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
 
         // Density
         Real rho = 1e-8;
-        Real P = 1e-11;
         Real lambda[2];
         if ((ndim == 3) && (std::sqrt(
             (x-xblob) * (x-xblob) + 
@@ -111,14 +111,12 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
             (z-zblob) * (z-zblob)
         ) < ringwidth*ringwidth)) {
             rho = rho_star;
-            P = rho_star;
         } else if (ndim == 2)
         {
             Real rcyl = std::sqrt(x*x + y*y);
             Real rcyl_blob = std::sqrt(xblob*xblob + yblob*yblob);
             if (((rcyl-rcyl_blob)*(rcyl-rcyl_blob) + (z-zblob)*(z-zblob))< ringwidth*ringwidth) {
                 rho = rho_star;
-                P = rho_star;
             }
         }
         if (iye > 0) {
@@ -126,11 +124,10 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
           lambda[0] = v(iye, k, j, i);
         }
 
-        const Real u = phoebus::energy_from_rho_P(eos, rho, P, emin, emax, lambda[0]);
-
-        const Real eps = u / (rho + 1e-20);
+        const Real eps = 1e-2;
+        const Real u = rho * eps;
         const Real T = eos.TemperatureFromDensityInternalEnergy(rho, eps, lambda);
-        //const Real P = eos.PressureFromDensityInternalEnergy(rho, eps, lambda);
+        const Real P = eos.PressureFromDensityInternalEnergy(rho, eps, lambda);
 
         v(irho, k, j, i) = rho;
         v(iprs, k, j, i) = P;
