@@ -51,6 +51,7 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
   const Real rho_star = pin->GetOrAddReal("star_shredder", "rho_star", 1.0);
   const Real rstar = pin->GetOrAddReal("star_shredder", "rstar", 0.01);
   const Real separation = pin->GetOrAddReal("star_shredder", "sep", 12);
+  const Real frac_kep = pin->GetOrAddReal("star_shredder", "frac_kep", 1.0);
   const Real ringwidth = pin->GetOrAddReal("star_shredder", "ringwidth", 1.0);
   const Real ringtheta = pin->GetOrAddReal("star_shredder", "ringtheta", 1.57);
   const Real ringphi = pin->GetOrAddReal("star_shredder", "ringphi", 3.14);
@@ -138,6 +139,8 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
                            v(iprs, k, j, i);
         for (int d = ivlo; d <= ivhi; d++)
           v(d, k, j, i) = 0.0;
+
+        v(ivhi, k, j, i) = frac_kep * pow(separation,-2./3.);
       });
 
   fluid::PrimitiveToConserved(rc.get());

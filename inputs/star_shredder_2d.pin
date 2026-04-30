@@ -41,7 +41,7 @@ dt          = 0.1        # time increment between outputs
 
 <parthenon/time>
 nlim        = -1        # cycle limit
-tlim        = 1         # time limit
+tlim        = 50        # time limit
 integrator  = rk2       # time integration algorithm
 ncycle_out  = 1         # interval for stdout summary info
 dt_init_fact = 1.e-6
@@ -57,7 +57,7 @@ x1max       = 2.5           # maximum value of X1
 ix1_bc      = gr_outflow    # Inner-X1 boundary condition flag
 ox1_bc      = gr_outflow    # Outer-X1 boundary condition flag
 
-nx2         = 64            # Number of zones in X2-direction
+nx2         = 32            # Number of zones in X2-direction
 x2min       = 0             # minimum value of X2
 x2max       = 1             # maximum value of X2. 
 ix2_bc      = reflect       # Inner-X2 boundary condition flag
@@ -118,9 +118,14 @@ ceiling_type = ConstantGamSie
 sie0_ceiling = 10.0
 gam0_ceiling = 10.0
 
+<geometry>
+a = 0.9375
+axisymmetric = true
+
 <star_shredder>
 rho_star = 1.;
 ringwidth = 1.5;
+frac_kep = 1.1;
 ringtheta = 0.79;
 ringphi = 3.14;
 sep = 5.;
