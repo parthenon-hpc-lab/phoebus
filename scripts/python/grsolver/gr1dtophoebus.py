@@ -3,7 +3,8 @@ import argparse
 from pathlib import Path
 
 c = 2.99792458e10  # speed of light in cm/s
-trunc = True
+trunc = False
+kb_mev = 8.61738568e-11 # conversion factor, gr1d temperatures are in MeV
 
 def read_time_series(filename):
     """Reads a time series file with radial profiles at each time step."""
@@ -56,6 +57,7 @@ def save_snapshot_at_time(time, data_dicts, gr1d_output_dir):
 
     v_ang = np.zeros_like(r)
     rho = rho_m + eps * rho_m / c**2
+    temp /= kb_mev # converting back to kelvin as expected.
 
     # >> adding a new condition to truncate at a specific radius (def. 500 + 100 km)
     if trunc:

@@ -88,7 +88,7 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
   // TESTING
   FILE * fout;
   fout = fopen("primitives.dat", "w");
-  fprintf( fout, "%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\n", "radius", "density", "sie", "u", "temp", "pressure");
+  fprintf( fout, "%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\n", "radius", "density", "sie", "u", "temp", "pressure", "velocity");
 
   // MonopoleGR
   static bool monopole_initialized = false;
@@ -156,7 +156,7 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
         // TEST to see if we're in code units or not....
         // printf("NEW :: rho: %g, T: %g, eps: %g, u: %g, P: %g\n\n", mass_density_dev.interpToReal(r), T_, sie_, u_, P);
 
-        fprintf( fout, "%-10.8e\t%-10.8e\t%-10.8e\t%-10.8e\t%-10.8e\t%-10.8e\n", r, mass_density_dev.interpToReal(r), sie_, u_, T_, P);
+        fprintf( fout, "%-10.8e\t%-10.8e\t%-10.8e\t%-10.8e\t%-10.8e\t%-10.8e\t%-10.8e\n", r, mass_density_dev.interpToReal(r), sie_, u_, T_, P, velocity_dev.interpToReal(r));
 
         Real vel_vec_in[3] = {0};
         Real vel_vec_out[3] = {0};

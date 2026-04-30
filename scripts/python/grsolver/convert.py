@@ -28,8 +28,8 @@ def ConvertData(filename, formattype):
     newdata["mass_density"] = data["mass_density"] * (G / c ** 2.0) ** 3.0 * M0 ** 2.0
     newdata["temp"] = data["temp"] * kB
     newdata["Ye"] = data["Ye"]
-    newdata["velocity"] = data["velocity"] / c
     newdata["specific_internal_energy"] = data["specific_internal_energy"] / c ** 2.0
+    newdata["velocity"] = data["velocity"] / c
     newdata["pressure"] = data["pressure"] * G ** 3.0 / c ** 8.0 * M0 ** 2.0
     dvdr = (newdata["velocity"][1:] - newdata["velocity"][:-1]) / (
         newdata["r"][1:] - newdata["r"][:-1]

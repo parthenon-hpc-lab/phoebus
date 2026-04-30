@@ -265,6 +265,8 @@ class GR_Solver:
         a = result[0]
         K = result[1]
 
+        print(rho_adm.size, r.size)
+
         ################# Solve for lapse
         ## INITIALIZE MATRIX
         da = (
@@ -425,15 +427,15 @@ class GR_Solver:
         return rho_adm, P_adm, S_adm, Srr_adm, a, K, alpha
 
     ##### EXTRAPOLATE DATA TO INCLUDE r=0
-    def ExtrapolateData(self, grid=10000, savemetric=False):
-        # r = np.linspace(0, max(self.R), 10000)
-
+    def ExtrapolateData(self, grid=10000, savemetric=False, unif_grid=True):
+        if unif_grid:
+            r = np.linspace(0, max(self.R), grid)
+        else:
         # law. >> adding a non-uniform grid here to hopefully get better resolution around the Fe core for CCSNe problem?
         # law. >> todo: come back and check the stiching between spacing...?
-        r_unif = np.linspace(0, 5e8, int(grid * 0.7))
-        r_log = np.logspace(np.log10(5e8), np.log10(max(self.R)), int(grid * 0.3), base=10.0)
-        r = np.concatenate((r_unif, r_log[1:]), axis=0) 
-        print(r)
+            r_unif = np.linspace(0, 5e8, int(grid * 0.7))
+            r_log = np.logspace(np.log10(5e8), np.log10(max(self.R)), int(grid * 0.3), base=10.0)
+            r = np.concatenate((r_unif, r_log[1:]), axis=0) 
 
         rho_adm0, P_adm0, S_adm0, Srr_adm0, a0, K0, alpha0 = self.Iterate(doplot=False)
         # rho_adm = interp1d(self.R, rho_adm0, fill_value="extrapolate")(r)
@@ -500,7 +502,7 @@ def main():
     if args.problem == "tov":
         r = np.linspace(0.00001, 2500, 1000) * 1.0e2
     if args.problem == "stellartable":
-        r = np.linspace(45, 10000, 1000) * 1.0e5
+        r = np.linspace(45, 50000, 1000) * 1.0e5 # increasing the radial cutoff, this will need to be refactored later for density cut
     if args.problem == "homologouscollapse" or args.problem == "GR1D" or args.problem == "Phoebus1D":
         r = np.load(args.loc + "/r.npy")
 
@@ -510,7 +512,7 @@ def main():
     GRsolver.Data()
     filename = "ADM_" + args.problem + ".dat"
     # law >> updated minor typo when saving filenames. 4 nov 2025
-    GRsolver.SaveFinalData(filename, zones=2048)
+    GRsolver.SaveFinalData(filename) 
     return
 
 
