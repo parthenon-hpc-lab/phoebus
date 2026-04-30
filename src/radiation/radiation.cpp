@@ -138,6 +138,8 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
       parthenon::AllReduce<bool> do_gain_reducer;
       bool always_gain = pin->GetOrAddBoolean("radiation", "always_gain", false);
       do_gain_reducer.val = always_gain;
+      // TODO: this should also be brought out of the lightbulb-only conditional
+      // (i.e. set to false in other cases?)
       params.Add("do_gain_reducer", do_gain_reducer, true);
       params.Add("always_gain", always_gain);
     }

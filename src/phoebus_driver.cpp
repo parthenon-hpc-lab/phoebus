@@ -759,6 +759,13 @@ TaskListStatus PhoebusDriver::RadiationPostStep() {
   auto num_independent_task_lists = blocks.size();
 
   const auto rad_method = rad->Param<std::string>("method");
+  /**
+   * TODO: history.cpp expects the Parthenon param do_gain_reducer to be
+   * defined/initialized if radiation is active (i.e. rad = true) --> we only define this
+   * in the case of the lighbulb assumption (see below.)
+   *
+   * some fix in logic needed, tbd.
+   */
   if (rad_method == "cooling_function") {
     parthenon::AllReduce<bool> *pdo_gain_reducer;
     bool do_lightbulb = rad->Param<bool>("do_lightbulb");
