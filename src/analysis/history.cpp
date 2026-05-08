@@ -306,8 +306,9 @@ Real CalculateMdot(MeshData<Real> *md, Real rc, bool gain) {
 
   auto rad = pmb->packages.Get("radiation").get();
   const bool rad_active = rad->Param<bool>("active");
+  const bool do_gain_calc = rad->Param<bool>("do_gain_calc");
   bool do_gain = false;
-  if (rad_active) {
+  if (rad_active && do_gain_calc) {
     const parthenon::AllReduce<bool> *pdo_gain_reducer =
         rad->MutableParam<parthenon::AllReduce<bool>>("do_gain_reducer");
     do_gain = pdo_gain_reducer->val;

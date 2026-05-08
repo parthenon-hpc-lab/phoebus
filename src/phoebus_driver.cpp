@@ -759,6 +759,7 @@ TaskListStatus PhoebusDriver::RadiationPostStep() {
   auto num_independent_task_lists = blocks.size();
 
   const auto rad_method = rad->Param<std::string>("method");
+  const bool do_gain_calc = rad->Param<bool>("do_gain_calc");
   /**
    * TODO: history.cpp expects the Parthenon param do_gain_reducer to be
    * defined/initialized if radiation is active (i.e. rad = true) --> we only define this
@@ -769,7 +770,7 @@ TaskListStatus PhoebusDriver::RadiationPostStep() {
   if (rad_method == "cooling_function") {
     parthenon::AllReduce<bool> *pdo_gain_reducer;
     bool do_lightbulb = rad->Param<bool>("do_lightbulb");
-    if (do_lightbulb) {
+    if (do_lightbulb && do_gain_calc) {
       pdo_gain_reducer = rad->MutableParam<parthenon::AllReduce<bool>>("do_gain_reducer");
     }
     // creating a new sync region for light bulb functions
@@ -781,17 +782,19 @@ TaskListStatus PhoebusDriver::RadiationPostStep() {
       auto finish_gain_reducer = none;
       if (do_lightbulb) {
         auto calc_tau = tl.AddTask(none, radiation::LightBulbCalcTau, sc0.get());
-        auto check_do_gain_local = tl.AddTask(calc_tau, radiation::CheckDoGain, sc0.get(),
-                                              &(pdo_gain_reducer->val));
-        auto start_gain_reducer =
-            (ib == 0 ? tl.AddTask(check_do_gain_local,
-                                  &parthenon::AllReduce<bool>::StartReduce,
-                                  pdo_gain_reducer, MPI_LOR)
-                     : none);
-        finish_gain_reducer =
-            tl.AddTask(TaskQualifier::local_sync | TaskQualifier::once_per_region,
-                       start_gain_reducer, &parthenon::AllReduce<bool>::CheckReduce,
-                       pdo_gain_reducer);
+        if (do_gain_calc) {
+          auto check_do_gain_local = tl.AddTask(calc_tau, radiation::CheckDoGain, sc0.get(),
+                                                &(pdo_gain_reducer->val));
+          auto start_gain_reducer =
+              (ib == 0 ? tl.AddTask(check_do_gain_local,
+                                    &parthenon::AllReduce<bool>::StartReduce,
+                                    pdo_gain_reducer, MPI_LOR)
+                      : none);
+          finish_gain_reducer =
+              tl.AddTask(TaskQualifier::local_sync | TaskQualifier::once_per_region,
+                        start_gain_reducer, &parthenon::AllReduce<bool>::CheckReduce,
+                        pdo_gain_reducer);
+        }
       }
       auto calculate_four_force =
           tl.AddTask(finish_gain_reducer, radiation::CoolingFunctionCalculateFourForce,
