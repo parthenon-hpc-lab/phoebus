@@ -132,7 +132,14 @@ ceiling_type = ConstantGamSie
 sie0_ceiling = 10.0;
 gam0_ceiling = 10.0;
 
-
+# rad disabled in default *.pin; see <physics> above
+# simple example for lightbulb case
+<radiation> 
+cfl = 0.5 
+method = cooling_function
+do_lightbulb 	= true
+do_liebendorfer	= true
+do_gain_calc = false # can be true or false for lightbulb only; always false for other methods
 
 <monopole_gr>
 enabled = true
