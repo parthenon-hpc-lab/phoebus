@@ -451,7 +451,7 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
           Real vp_normalobs[3] = {0}; // Inject floors at rest in normal observer frame
           Real ye = 0.5;
           if (pye > 0) {
-            ye = v(b, cye, k, j, i);
+            ye = v(b, pye, k, j, i);
           }
           eos_lambda[0] = ye;
           Real dprs =
