@@ -113,6 +113,20 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   bool absorption = pin->GetOrAddBoolean("radiation", "absorption", true);
   params.Add("absorption", absorption);
 
+  // initialize gain parameters from .pin, set false by default
+  bool do_gain_calc = pin->GetOrAddBoolean("radiation", "do_gain_calc", false);
+  params.Add("do_gain_calc", do_gain_calc, false);
+
+  // only intitialize these if we do gain calculations; otherwise not needed!
+  if (do_gain_calc) {
+    bool always_gain = pin->GetOrAddBoolean("radiation", "always_gain", false);
+    // mutable parameter for specific gain calculations
+    parthenon::AllReduce<bool> do_gain_reducer;
+    do_gain_reducer.val = always_gain;
+    params.Add("do_gain_reducer", do_gain_reducer, true);
+    params.Add("always_gain", always_gain);
+  }
+
   bool do_lightbulb = false;
   if (method == "cooling_function") {
     const bool do_liebendorfer =
@@ -135,11 +149,6 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
 #endif // SPINER_USE_HDF
       Metadata m({Metadata::Cell, Metadata::OneCopy});
       physics->AddField(iv::tau::name(), m);
-      parthenon::AllReduce<bool> do_gain_reducer;
-      bool always_gain = pin->GetOrAddBoolean("radiation", "always_gain", false);
-      do_gain_reducer.val = always_gain;
-      params.Add("do_gain_reducer", do_gain_reducer, true);
-      params.Add("always_gain", always_gain);
     }
   }
 

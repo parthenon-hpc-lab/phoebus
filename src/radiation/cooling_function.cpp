@@ -179,15 +179,21 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
   // Light Bulb with Liebendorfer model
   const bool do_liebendorfer = rad->Param<bool>("do_liebendorfer");
   const bool do_lightbulb = rad->Param<bool>("do_lightbulb");
+  const bool do_gain_calc = rad->Param<bool>("do_gain_calc");
+
   if (do_lightbulb) {
 #ifdef SPINER_USE_HDF
     const Real lum = rad->Param<Real>("lum");
     auto eos = pmb->packages.Get("eos")->Param<Microphysics::EOS::EOS>("d.EOS");
     singularity::StellarCollapse eos_sc =
         eos.GetUnmodifiedObject().get<singularity::StellarCollapse>();
-    const parthenon::AllReduce<bool> *pdo_gain_reducer =
-        rad->MutableParam<parthenon::AllReduce<bool>>("do_gain_reducer");
-    const bool do_gain = pdo_gain_reducer->val;
+
+    bool do_gain = false;
+    if (do_gain_calc) {
+      const parthenon::AllReduce<bool> *pdo_gain_reducer =
+          rad->MutableParam<parthenon::AllReduce<bool>>("do_gain_reducer");
+      do_gain = pdo_gain_reducer->val;
+    }
 
     parthenon::par_for(
         DEFAULT_LOOP_PATTERN, "CoolingFunctionCalculateFourForce", DevExecSpace(), 0,
