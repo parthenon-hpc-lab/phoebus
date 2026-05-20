@@ -119,7 +119,6 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
 
   // only intitialize these if we do gain calculations; otherwise not needed!
   if (do_gain_calc) {
-    printf("do_gain_calc true\n\n");
     bool always_gain = pin->GetOrAddBoolean("radiation", "always_gain", false);
     // mutable parameter for specific gain calculations
     parthenon::AllReduce<bool> do_gain_reducer;

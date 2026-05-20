@@ -139,7 +139,7 @@ cfl = 0.5
 method = cooling_function
 do_lightbulb 	= true
 do_liebendorfer	= true
-do_gain_calc = false # can be true or false for lightbulb only; always false for other methods
+do_gain_calc = false # defaults to false if not set
 
 <monopole_gr>
 enabled = true
