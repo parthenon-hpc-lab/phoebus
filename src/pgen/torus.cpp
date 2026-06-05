@@ -340,8 +340,8 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
 
         // fixup
         Real rhoflr = 0;
-        Real epsflr;
-        floor.GetFloors(x1v, x2v, x3, rhoflr, epsflr);
+        Real epsflr, garbage;
+        floor.GetFloors(x1v, x2v, x3, rhoflr, epsflr, garbage);
         Real lambda[2] = {Ye, 0.0};
         if (iye > 0) {
           v(iye, k, j, i) = lambda[0];

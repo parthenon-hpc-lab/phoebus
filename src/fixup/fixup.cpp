@@ -164,6 +164,11 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
       Real rp = pin->GetOrAddReal("fixup", "rho_exp_floor", -2.0);
       Real sp = pin->GetOrAddReal("fixup", "u_exp_floor", -3.0);
       params.Add("floor", Floors(r_rho_sie_floor_tag, rho0, sie0, rp, sp));
+    } else if (floor_type == "ConstantRhoTemp") {
+      Real rho0 = pin->GetOrAddReal("fixup", "rho0_floor", 0.0);
+      Real sie0 = pin->GetOrAddReal("fixup", "sie0_floor", 0.0);
+      Real temp0 = pin->GetOrAddReal("fixup", "temp0_floor", 0.0);
+      params.Add("floor", Floors(constant_rho_temp_floor_tag, rho0, sie0, temp0));
     } else {
       PARTHENON_FAIL("invalid <fixup>/floor_type input");
     }
@@ -350,6 +355,11 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
   auto geom = Geometry::GetCoordinateSystem(rc);
   Bounds *pbounds = fix_pkg->MutableParam<Bounds>("bounds");
   const Real h_min = eos_pkg->Param<Real>("h_min");
+  // law. are we using a StellarCollapse EOS? that determines what floor we use later.
+  const bool stellar_collapse =
+      StellarCollapse::EosType().compare(eos_pkg->Param<std::string>("type")) == 0
+          ? true
+          : false;
 
   // BLB: Setting EOS bnds for Ceilings/Floors here.
   pbounds->SetEOSBnds(eos_pkg);
@@ -377,9 +387,9 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
                               // finding.
         eos_lambda[1] = std::log10(v(b, tmp, k, j, i)); // use last temp as initial guess
 
-        double rho_floor, sie_floor;
+        double rho_floor, sie_floor, temp_floor;
         bounds.GetFloors(coords.Xc<1>(k, j, i), coords.Xc<2>(k, j, i),
-                         coords.Xc<3>(k, j, i), rho_floor, sie_floor);
+                         coords.Xc<3>(k, j, i), rho_floor, sie_floor, temp_floor);
         double gamma_max, e_max;
         bounds.GetCeilings(coords.Xc<1>(k, j, i), coords.Xc<2>(k, j, i),
                            coords.Xc<3>(k, j, i), gamma_max, e_max);
@@ -396,6 +406,7 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
 
         Real rho_floor_max = rho_floor;
         Real u_floor_max = rho_floor * sie_floor;
+        Real T_floor_max = temp_floor;
 
         bool floor_applied = false;
         bool ceiling_applied = false;
@@ -434,12 +445,24 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
 
         Real drho = rho_floor_max - v(b, prho, k, j, i);
         Real du = u_floor_max - v(b, peng, k, j, i);
+        Real dT = T_floor_max - v(b, tmp, k, j, i);
 
-        if (drho > 0. || du > 0.) {
+        printf("%-5.8e\t", std::max<Real>(du, sie_floor * drho));
+
+        if (drho > 0. || du > 0. && !stellar_collapse) {
           floor_applied = true;
           drho = std::max<Real>(drho, du / sie_floor);
           du = std::max<Real>(du, sie_floor * drho);
+        } else if (drho > 0. || dT > 0. && stellar_collapse) {
+          floor_applied = true;
+          // new, rho-T consistent energy density (temp floor dependent?)
+          du = std::max<Real>(du, eos.InternalEnergyFromDensityTemperature(
+                                      rho_floor_max, T_floor_max, eos_lambda) *
+                                          rho_floor_max -
+                                      v(b, peng, k, j, i));
         }
+
+        printf("%-5.8e\t%-5.8e\n", du, drho);
 
         Real dcrho, dS[3], dBcons[3], dtau, dyecons;
         Real bp[3] = {0};
