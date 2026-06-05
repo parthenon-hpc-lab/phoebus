@@ -90,8 +90,8 @@ class FluxState {
                     const Real sie_max, const Real gam_max) const {
     const int dir = d - 1;
     Real rho_floor = q(dir, prho, k, j, i);
-    Real sie_floor;
-    bounds.GetFloors(g.X[1], g.X[2], g.X[3], rho_floor, sie_floor);
+    Real sie_floor, temp_floor;
+    bounds.GetFloors(g.X[1], g.X[2], g.X[3], rho_floor, sie_floor, temp_floor);
     const Real rho = std::max(q(dir, prho, k, j, i), rho_floor);
     Real vpcon[] = {q(dir, pvel_lo, k, j, i), q(dir, pvel_lo + 1, k, j, i),
                     q(dir, pvel_lo + 2, k, j, i)};

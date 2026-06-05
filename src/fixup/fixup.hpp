@@ -66,8 +66,17 @@ static struct X1RhoSieFloor {
 } x1_rho_sie_floor_tag;
 static struct RRhoSieFloor {
 } r_rho_sie_floor_tag;
+static struct ConstantRhoTempFloor {
+} constant_rho_temp_floor_tag;
 
-enum class FloorFlag { ConstantRhoSie, ExpX1RhoSie, ExpX1RhoU, X1RhoSie, RRhoSie };
+enum class FloorFlag {
+  ConstantRhoSie,
+  ExpX1RhoSie,
+  ExpX1RhoU,
+  X1RhoSie,
+  RRhoSie,
+  ConstantRhoTemp
+};
 
 class Floors {
  public:
@@ -87,10 +96,12 @@ class Floors {
   }
   Floors(RRhoSieFloor, const Real rho0, const Real sie0, const Real rp, const Real sp)
       : r0_(rho0), s0_(sie0), ralpha_(rp), salpha_(sp), floor_flag_(FloorFlag::RRhoSie) {}
+  Floors(ConstantRhoTempFloor, const Real rho0, const Real temp0)
+      : r0_(rho0), t0_(temp0), floor_flag_(FloorFlag::ConstantRhoTemp) {}
 
   KOKKOS_INLINE_FUNCTION
-  void GetFloors(const Real x1, const Real x2, const Real x3, Real &rflr,
-                 Real &sflr) const {
+  void GetFloors(const Real x1, const Real x2, const Real x3, Real &rflr, Real &sflr,
+                 Real &tflr) const {
     if (!eos_bnds_set_) {
       PARTHENON_FAIL("EOS bounds not set in floors.");
     }
@@ -101,12 +112,14 @@ class Floors {
       sflr = s0_;
       rflr = std::max(rflr, rho_min_eos_);
       sflr = std::max(sflr, sie_min_eos_);
+      tflr = 0.0;
       break;
     case FloorFlag::ExpX1RhoSie:
       rflr = r0_ * std::exp(ralpha_ * x1);
       sflr = s0_ * std::exp(salpha_ * x1);
       rflr = std::max(rflr, rho_min_eos_);
       sflr = std::max(sflr, sie_min_eos_);
+      tflr = 0.0;
       break;
     case FloorFlag::ExpX1RhoU: {
       Real scratch = r0_ * std::exp(ralpha_ * x1);
@@ -114,12 +127,14 @@ class Floors {
       rflr = scratch;
       rflr = std::max(rflr, rho_min_eos_);
       sflr = std::max(sflr, sie_min_eos_);
+      tflr = 0.0;
     } break;
     case FloorFlag::X1RhoSie:
       rflr = r0_ * std::min(1.0, std::pow(x1, ralpha_));
       sflr = s0_ * std::min(1.0, std::pow(x1, salpha_));
       rflr = std::max(rflr, rho_min_eos_);
       sflr = std::max(sflr, sie_min_eos_);
+      tflr = 0.0;
       break;
     case FloorFlag::RRhoSie: {
       Real r = std::sqrt(x1 * x1 + x2 * x2 + x3 * x3);
@@ -127,7 +142,15 @@ class Floors {
       sflr = s0_ * std::min(1.0, std::pow(r, salpha_));
       rflr = std::max(rflr, rho_min_eos_);
       sflr = std::max(sflr, sie_min_eos_);
+      tflr = 0.0;
     } break;
+    case FloorFlag::ConstantRhoTemp:
+      rflr = r0_;
+      sflr = sie_min_eos_;
+      tflr = t0_;
+      rflr = std::max(rflr, rho_min_eos_);
+      tflr = std::max(tflr, temp_min_eos_);
+      break;
     default:
       PARTHENON_FAIL("No valid floor set.");
     }
@@ -137,12 +160,13 @@ class Floors {
     if (!eos_bnds_set_) {
       rho_min_eos_ = eos_pkg->Param<Real>("rho_min");
       sie_min_eos_ = eos_pkg->Param<Real>("sie_min");
+      temp_min_eos_ = eos_pkg->Param<Real>("T_min");
       eos_bnds_set_ = true;
     }
   }
 
  private:
-  Real r0_, s0_, ralpha_, salpha_, rho_min_eos_, sie_min_eos_;
+  Real r0_, s0_, t0_, ralpha_, salpha_, rho_min_eos_, sie_min_eos_, temp_min_eos_;
   const FloorFlag floor_flag_;
   bool eos_bnds_set_;
 };
