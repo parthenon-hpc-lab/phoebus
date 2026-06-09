@@ -96,8 +96,8 @@ class Floors {
   }
   Floors(RRhoSieFloor, const Real rho0, const Real sie0, const Real rp, const Real sp)
       : r0_(rho0), s0_(sie0), ralpha_(rp), salpha_(sp), floor_flag_(FloorFlag::RRhoSie) {}
-  Floors(ConstantRhoTempFloor, const Real rho0, const Real sie0, const Real temp0)
-      : r0_(rho0), s0_(sie0), t0_(temp0), floor_flag_(FloorFlag::ConstantRhoTemp) {}
+  Floors(ConstantRhoTempFloor, const Real rho0, const Real temp0)
+      : r0_(rho0), t0_(temp0), floor_flag_(FloorFlag::ConstantRhoTemp) {}
 
   KOKKOS_INLINE_FUNCTION
   void GetFloors(const Real x1, const Real x2, const Real x3, Real &rflr, Real &sflr,
@@ -146,10 +146,9 @@ class Floors {
     } break;
     case FloorFlag::ConstantRhoTemp:
       rflr = r0_;
-      sflr = s0_;
       tflr = t0_;
       rflr = std::max(rflr, rho_min_eos_);
-      sflr = std::max(sflr, sie_min_eos_);
+      sflr = sie_min_eos_; // we still need to set a minimum energy since it's used in c2p methods
       tflr = std::max(tflr, temp_min_eos_);
       break;
     default:
