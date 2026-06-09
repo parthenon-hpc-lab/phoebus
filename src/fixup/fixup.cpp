@@ -355,11 +355,10 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
   auto geom = Geometry::GetCoordinateSystem(rc);
   Bounds *pbounds = fix_pkg->MutableParam<Bounds>("bounds");
   const Real h_min = eos_pkg->Param<Real>("h_min");
+  
   // law. are we using a StellarCollapse EOS? that determines what floor we use later.
   const bool stellar_collapse =
-      StellarCollapse::EosType().compare(eos_pkg->Param<std::string>("type")) == 0
-          ? true
-          : false;
+      eos_pkg->Param<std::string>("type").compare("StellarCollapse") == 0 ? true : false;
 
   // BLB: Setting EOS bnds for Ceilings/Floors here.
   pbounds->SetEOSBnds(eos_pkg);
@@ -447,8 +446,6 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
         Real du = u_floor_max - v(b, peng, k, j, i);
         Real dT = T_floor_max - v(b, tmp, k, j, i);
 
-        printf("%-5.8e\t", std::max<Real>(du, sie_floor * drho));
-
         if (drho > 0. || du > 0. && !stellar_collapse) {
           floor_applied = true;
           drho = std::max<Real>(drho, du / sie_floor);
@@ -461,8 +458,6 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
                                           rho_floor_max -
                                       v(b, peng, k, j, i));
         }
-
-        printf("%-5.8e\t%-5.8e\n", du, drho);
 
         Real dcrho, dS[3], dBcons[3], dtau, dyecons;
         Real bp[3] = {0};
