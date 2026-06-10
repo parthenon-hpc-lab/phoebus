@@ -340,23 +340,37 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
 
         // fixup
         Real rhoflr = 0;
-        Real epsflr, garbage;
-        floor.GetFloors(x1v, x2v, x3, rhoflr, epsflr, garbage);
+        Real epsflr, tmpflr;
+        // check floor type
+        bool is_floor_rhoT = pmb->packages.Get("fixup")->Param<bool>("is_floor_rhoT");
+        floor.GetFloors(x1v, x2v, x3, rhoflr, epsflr, tmpflr);
         Real lambda[2] = {Ye, 0.0};
         if (iye > 0) {
           v(iye, k, j, i) = lambda[0];
         }
-        v(irho, k, j, i) = v(irho, k, j, i) < rhoflr ? rhoflr : v(irho, k, j, i);
-        v(ieng, k, j, i) = v(ieng, k, j, i) / v(irho, k, j, i) < epsflr
-                               ? v(irho, k, j, i) * epsflr
-                               : v(ieng, k, j, i);
-        v(itmp, k, j, i) = eos.TemperatureFromDensityInternalEnergy(
-            v(irho, k, j, i), v(ieng, k, j, i) / v(irho, k, j, i), lambda);
+
+        // new conditional to handle non-standard floors (rho-T).
+        if ( is_floor_rhoT ) {
+
+          v(irho, k, j, i) = v(irho, k, j, i) < rhoflr ? rhoflr : v(irho, k, j, i);
+          v(itmp, k, j, i) = v(itmp, k, j, i) < tmpflr ? tmpflr : v(itmp, k, j, i);
+          v(ieng, k, j, i) = eos.InternalEnergyFromDensityTemperature( v(irho, k, j, i), v(itmp, k, j, i), lambda);
+
+        } else { // original logic, works for all rho-sie floors.
+
+          v(irho, k, j, i) = v(irho, k, j, i) < rhoflr ? rhoflr : v(irho, k, j, i);
+          v(ieng, k, j, i) = v(ieng, k, j, i) / v(irho, k, j, i) < epsflr
+                                ? v(irho, k, j, i) * epsflr
+                                : v(ieng, k, j, i);
+          v(itmp, k, j, i) = eos.TemperatureFromDensityInternalEnergy(
+              v(irho, k, j, i), v(ieng, k, j, i) / v(irho, k, j, i), lambda);
+        }
+
         v(iprs, k, j, i) = eos.PressureFromDensityTemperature(v(irho, k, j, i),
                                                               v(itmp, k, j, i), lambda);
         v(igm1, k, j, i) = eos.BulkModulusFromDensityTemperature(
-                               v(irho, k, j, i), v(itmp, k, j, i), lambda) /
-                           v(iprs, k, j, i);
+                              v(irho, k, j, i), v(itmp, k, j, i), lambda) /
+                          v(iprs, k, j, i);
 
         Real ucon[4] = {0};
         Real vpcon[3] = {v(ivlo, k, j, i), v(ivlo + 1, k, j, i), v(ivlo + 2, k, j, i)};
