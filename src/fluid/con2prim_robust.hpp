@@ -105,9 +105,13 @@ class Residual {
   Real ehat_mu(const Real mu, const Real qbar, const Real rbarsq, const Real vhatsq,
                const Real What) {
     Real rho = rhohat_mu(robust::ratio(1.0, What));
-    Real T_floor;
     bounds_.GetFloors(x1_, x2_, x3_, rho, e_floor_, temp_floor_);
     e_floor_ *= floor_scale_fac_;
+    Real e_floor_local_ =
+        eos_.InternalEnergyFromDensityTemperature(rho, temp_floor_, lambda_);
+    // more robust case for rho-T floors >> setting e_floor to (tigher) local minimum if
+    // needed.
+    e_floor_ = std::max(e_floor_, e_floor_local_);
     const Real ehat_trial =
         What * (qbar - mu * rbarsq) + vhatsq * What * robust::ratio(What, 1.0 + What);
     used_energy_floor_ = false;

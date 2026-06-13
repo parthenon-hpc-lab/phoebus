@@ -148,7 +148,7 @@ class Floors {
       rflr = r0_;
       tflr = t0_;
       rflr = std::max(rflr, rho_min_eos_);
-      sflr = sie_min_eos_; // we still need to set a minimum energy since it's used in c2p methods
+      sflr = sie_min_eos_; // we still need to set a minimum energy since it's used in c2p
       tflr = std::max(tflr, temp_min_eos_);
       break;
     default:

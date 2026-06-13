@@ -360,7 +360,7 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
   auto geom = Geometry::GetCoordinateSystem(rc);
   Bounds *pbounds = fix_pkg->MutableParam<Bounds>("bounds");
   const Real h_min = eos_pkg->Param<Real>("h_min");
-  
+
   // checks if we're using a non-standard floor (e.g. not rho-sie based)
   const bool is_floor_rhoT = fix_pkg->Param<bool>("is_floor_rhoT");
 
