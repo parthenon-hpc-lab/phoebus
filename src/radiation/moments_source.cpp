@@ -358,7 +358,6 @@ TaskStatus MomentFluidSourceImpl(T *rc, Real dt, bool update_fluid) {
             InteractionTResidual res(eos, opacities, rho, ug, Ye, J0, num_species,
                                      species_d, dtau, alpha_max);
             root_find::RootFindStatus status;
-            printf("regula falsi, moments_source\n");
             Real T1 = root_find.regula_falsi(res, 1.e-2 * v(iblock, pT, k, j, i),
                                              1.e2 * v(iblock, pT, k, j, i),
                                              src_rootfind_tol * v(iblock, pT, k, j, i),
