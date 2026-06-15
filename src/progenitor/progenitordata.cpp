@@ -156,11 +156,13 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   };
 
   const bool rad_active = pin->GetBoolean("physics", "rad");
-  const bool do_gain_calc = pin->GetOrAddBoolean("radiation", "do_gain_calc", false);
-  if (rad_active && do_gain_calc) {
-    hst_vars.emplace_back(HistoryOutputVar(HstSum, Mgain, "Mgain"));
-    hst_vars.emplace_back(HistoryOutputVar(HstSum, Qgain, "total net heat"));
-    hst_vars.emplace_back(HistoryOutputVar(HstSum, Mdot_gain, "Mdot gain"));
+  if (rad_active) {
+    const bool do_gain_calc = pin->GetOrAddBoolean("radiation", "do_gain_calc", false);
+    if (do_gain_calc) {
+      hst_vars.emplace_back(HistoryOutputVar(HstSum, Mgain, "Mgain"));
+      hst_vars.emplace_back(HistoryOutputVar(HstSum, Qgain, "total net heat"));
+      hst_vars.emplace_back(HistoryOutputVar(HstSum, Mdot_gain, "Mdot gain"));
+    }
   }
   params.Add(parthenon::hist_param_key, hst_vars);
 
