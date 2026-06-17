@@ -3,6 +3,8 @@ import seos
 
 import numpy as np
 
+# for iteration and numerical solutions
+from scipy import optimize
 from scipy.integrate import solve_ivp
 
 # interpolation schemes
@@ -35,14 +37,14 @@ class ADMSolver:
 
     '''
 
-    def __init__(self, problem: str, grid: np.ndarray, DATPATH: str, EOSPATH: str, interp_method = 'cubic', bc_type = 'clamped', num_iterations = 1000):
+    def __init__(self, problem: str, grid: np.ndarray, DATPATH: str, EOSPATH: str, interp_method = 'cubic', bc_type = 'clamped', num_iterations = 100):
         self.problem    = problem
         self.DATPATH    = DATPATH
         self.EOSPATH    = EOSPATH
         self.n          = num_iterations
         self.grid       = grid # desired output grid/domain
         self.method     = interp_method
-        self.bounds    = bc_type
+        self.bounds     = bc_type
 
         self.loadData()
 
@@ -124,20 +126,238 @@ class ADMSolver:
         dphi = np.gradient(phi, self.grid)
         alpha2 = 1.0 + 2.0 * phi / c ** 2.0
         a2 = 1.0 + 2.0 * self.grid * dphi / c ** 2.0
-        
+
         return alpha2, a2
 
 
     def calculateInitialADM( self ):
-        pass
+        
+        # TODO: also find a reference for this method, and iteration...
+
+        # 3-metric??
+        gamma2 = 1.0 / (
+            1.0 - (self.v_int(self.grid) ** 2.0 + (self.v_ang_int(self.grid) * self.grid) ** 2.0) / c ** 2.0)
+
+        if self.problem == "tov":
+            return -1, -1, -1 # we can come back to this case if needed...
+
+        alpha2, a2 = self.CalculateMetricForNewtonian(self.grid)
+
+        rho_adm = alpha2 * self.rho_int(self.grid) * gamma2
+
+        P_adm = (
+            np.sqrt(alpha2)
+            * gamma2
+            * (self.rho_int(self.grid) + self.p_int(self.grid) / c ** 2.0)
+            * self.v_int(self.grid)
+        )  ## r-component
+
+        S_adm = (alpha2 * gamma2 - 1.0) * self.rho_int(self.grid) * c ** 2.0 + (
+            alpha2 * gamma2 + 2.0
+        ) * self.p_int(self.grid)
+
+        # interpolation for our lapse function
+        self.alpha2_int = self.interp( alpha2 )
+        self.a2_int = self.interp( a2 )
+        
+        return rho_adm, P_adm, S_adm
 
 
-    def calculateADM( self ):
-        pass
+
+    def calculateMetric( self, rho_adm: np.ndarray, P_adm: np.ndarray, S_adm: np.ndarray ):
+        
+        # interpolated quantities
+        rho_adm_int     = self.interp( rho_adm )
+        j_adm_int       = self.interp( P_adm )
+
+        r = self.grid
+
+        # integrands for initial value problem solver
+        def f(x, V):
+
+            da = (V[0]
+                / 8.0
+                / x
+                * (
+                    32.0 * np.pi * x ** 2.0 * V[0] ** 2 * rho_adm_int(x) * G / c ** 2.0
+                    + 3.0 * x ** 2.0 * V[0] ** 2.0 * V[1] ** 2.0
+                    + 4.0
+                    - 4.0 * V[0] ** 2.0
+                ))
+            
+            dK = 8.0 * np.pi * V[0] ** 2.0 * j_adm_int(x) * G / c ** 3.0 - 3.0 / x * V[1]
+        
+            return [da, dK]
+        
+        ## INITIAL CONDITIONS (r = 0)
+        V0 = [1, 0]
+        
+        ## SOLVE COUPLED DIFFERENTIAL EQUATIONS FOR EXTRINSIC CURVATURE
+
+        sol = solve_ivp(f, [min(r), max(r)], V0, t_eval=r, vectorized=True)
+        result = sol.y
+        a = result[0]
+        K = result[1]
+
+        print(rho_adm.size, r.size)
+
+        ################# Solve for lapse
+        ## INITIALIZE MATRIX
+        da = (
+            a
+            / 8.0
+            / r
+            * (
+                32.0 * np.pi * r ** 2.0 * a ** 2.0 * rho_adm * G / c ** 2.0
+                + 3.0 * r ** 2 * a ** 2 * K ** 2
+                + 4
+                - 4.0 * a ** 2
+            )
+        )
+        ## BOUNDARY CONDITIONS
+
+        M = np.zeros([len(r), len(r)])
+        V = np.zeros(len(r))  # <--------  MX+V=0
+        eps = r[1] - r[0]
+        A0 = (
+            1.0 / a[0] ** 2 / eps ** 2
+            + da[0] / (2 * a[0] ** 3.0 * eps)
+            - 1.0 / (a[0] ** 2.0 * r[0] * eps)
+        )
+        B0 = -(
+            2.0 / (a[0] ** 2.0 * eps ** 2)
+            + 4 * np.pi * G / c ** 2.0 * (S_adm[0] / c ** 2.0 + rho_adm[0])
+            + 3.0 / 2.0 * K[0] ** 2.0
+        )
+        C0 = (
+            1.0 / (a[0] ** 2.0 * eps ** 2.0)
+            - da[0] / (2.0 * a[0] ** 3.0 * eps)
+            + 1.0 / (a[0] ** 2.0 * r[0] * eps)
+        )
+        ##V[0]=A0
+        M[0, 0] = A0 + B0
+        M[0, 1] = C0
+        AL = (
+            1 / a[len(r) - 1] ** 2 / eps ** 2
+            + da[len(r) - 1] / (2 * a[len(r) - 1] ** 3.0 * eps)
+            - 1.0 / (a[len(r) - 1] ** 2.0 * r[len(r) - 1] * eps)
+        )
+        BL = -(
+            2.0 / (a[len(r) - 1] ** 2.0 * eps ** 2)
+            + 4
+            * np.pi
+            * G
+            / c ** 2.0
+            * (S_adm[len(r) - 1] / c ** 2 + rho_adm[len(r) - 1])
+            + 3.0 / 2.0 * K[len(r) - 1] ** 2.0
+        )
+        CL = (
+            1.0 / (a[len(r) - 1] ** 2.0 * eps ** 2.0)
+            - da[len(r) - 1] / (2.0 * a[len(r) - 1] ** 3.0 * eps)
+            + 1.0 / (a[len(r) - 1] ** 2.0 * r[len(r) - 1] * eps)
+        )
+        V[len(r) - 1] = eps / r[len(r) - 1] * CL
+        M[len(r) - 1, len(r) - 2] = AL
+        M[len(r) - 1, len(r) - 1] = BL + (1.0 - eps / r[len(r) - 1]) * CL
+
+        ## THE REST OF THE MATRIX
+        for i in range(1, len(r) - 1):
+            A = (
+                1 / a[i] ** 2 / eps ** 2
+                + da[i] / (2 * a[i] ** 3.0 * eps)
+                - 1.0 / (a[i] ** 2.0 * r[i] * eps)
+            )
+            B = -(
+                2.0 / (a[i] ** 2.0 * eps ** 2)
+                + 4 * np.pi * G / c ** 2.0 * (S_adm[i] / c ** 2.0 + rho_adm[i])
+                + 3.0 / 2.0 * K[i] ** 2.0
+            )
+            C = (
+                1.0 / (a[i] ** 2.0 * eps ** 2.0)
+                - da[i] / (2.0 * a[i] ** 3.0 * eps)
+                + 1.0 / (a[i] ** 2.0 * r[i] * eps)
+            )
+            M[i, i - 1] = A
+            M[i, i] = B
+            M[i, i + 1] = C
+
+        def f(x):
+            return np.dot(M, x) + V
+
+        sol = optimize.root(f, 100 * np.ones(len(r)))
+        alpha = sol.x
+
+        ################# Solve for shift
+        beta = -a ** 2.0 / 2.0 * alpha * r * K
+        return a, K, alpha, beta
 
 
-    def iterate( self ):
-        pass
+    def calculateADM( self, a, alpha, beta ):
+
+        r = self.grid
+
+        rho_adm = np.zeros(len(r))
+        P_adm = np.zeros(len(r))
+        S_adm = np.zeros(len(r))
+        Srr_adm = np.zeros(len(r))
+
+        for i in range(len(r)):
+            # upper metric
+            g00 = -1.0 / alpha[i] ** 2.0
+            g0r = beta[i] / alpha[i] ** 2.0
+            gamma2 = 1.0 / (1 - self.v_int(r[i]) ** 2.0 / c ** 2.0)
+            rho_adm[i] = alpha[i] ** 2.0 * (
+                (self.rho_int(r[i]) + self.p_int(r[i]) / c ** 2.0) * gamma2
+                - self.p_int(r[i]) / c ** 2.0 * g00
+            )
+            P_adm[i] = alpha[i] * beta[i] * (
+                (self.rho_int(r[i]) + self.p_int(r[i]) / c ** 2.0) * gamma2
+                + self.p_int(r[i]) / c ** 2.0 * g00
+            ) + alpha[i] * (
+                (self.rho_int(r[i]) + self.p_int(r[i]) / c ** 2.0)
+                * gamma2
+                * self.v_int(r[i])
+                + self.p_int(r[i]) / c ** 2.0 * g0r
+            )  ## r-component  (upper index)
+            S_adm[i] = (alpha[i] ** 2.0 * gamma2 - 1.0) * self.rho_int(
+                r[i]
+            ) * c ** 2.0 + (alpha[i] ** 2.0 * gamma2 + 2.0) * self.p_int(r[i])
+            Srr_adm[i] = self.rho_int(r[i]) * self.v_int(r[i]) ** 2.0 * gamma2 * a[
+                i
+            ] ** 4.0 + self.p_int(r[i]) * a[i] ** 4.0 * (
+                1.0 / a[i] ** 2
+                - beta[i] ** 2.0 / alpha[i] ** 2.0
+                + self.v_int(r[i]) ** 2.0 / c ** 2.0 * gamma2
+            )
+        return rho_adm, P_adm, S_adm, Srr_adm
+
+
+    def iterate( self, verbose = False):
+        
+        ### INITIAL ADM QUANTITIES
+        rho_adm, P_adm, S_adm = self.calculateADM()
+        r = self.grid
+        alpha_prev = np.sqrt(self.alpha2_int(r))
+
+        for i in range( self.n ):
+
+            a, K, alpha, beta = self.calculateMetric(r, rho_adm, P_adm, S_adm)
+
+            if verbose: # TODO: add a more informative print statement here
+                print(f'{i: 01d} {np.max(abs(alpha)): 04.5e} {np.max(abs(alpha_prev- alpha)): 04.5e}')
+
+            if np.max(abs(alpha_prev - alpha)) < 1.0e-12:
+                break
+            # adding a new convergence criteria (slightly looser, not sure why the original value was selected.)
+            if np.max(abs(alpha_prev - alpha)) < 6.0e-12:
+                break
+
+            if i == (self.n - 1):
+                raise ArithmeticError(f'>>> ADM calculation has not converged after {self.n} iterations.')
+            alpha_prev = alpha
+            rho_adm, P_adm, S_adm, Srr_adm = self.CalculateADM(r, a, K, alpha, beta)
+
+        return rho_adm, P_adm, S_adm, Srr_adm, a, K, alpha
 
     def extrapolateData( self ):
         pass
