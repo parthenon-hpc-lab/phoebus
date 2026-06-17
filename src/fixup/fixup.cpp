@@ -456,7 +456,7 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
           du = std::max<Real>(du, sie_floor * drho);
         } else if (drho > 0. || dT > 0. && is_floor_rhoT) {
           floor_applied = true;
-          // new, rho-T consistent energy density (temp floor dependent)
+          // rho-T consistent energy density (temp floor dependent)
           du = std::max<Real>(du, eos.InternalEnergyFromDensityTemperature(
                                       rho_floor_max, T_floor_max, eos_lambda) *
                                           rho_floor_max -
