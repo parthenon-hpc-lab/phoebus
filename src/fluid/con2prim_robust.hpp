@@ -57,7 +57,7 @@ class Residual {
 
     lambda_[0] = Ye;
     Real garbage = 0.0;
-    bounds_.GetFloors(x1_, x2_, x3_, rho_floor_, garbage);
+    bounds_.GetFloors(x1_, x2_, x3_, rho_floor_, garbage, temp_floor_);
     bounds_.GetCeilings(x1_, x2_, x3_, gam_max_, e_max_);
 
     Real zsq_ = rsq_ / h0sq_;
@@ -105,8 +105,13 @@ class Residual {
   Real ehat_mu(const Real mu, const Real qbar, const Real rbarsq, const Real vhatsq,
                const Real What) {
     Real rho = rhohat_mu(robust::ratio(1.0, What));
-    bounds_.GetFloors(x1_, x2_, x3_, rho, e_floor_);
+    bounds_.GetFloors(x1_, x2_, x3_, rho, e_floor_, temp_floor_);
     e_floor_ *= floor_scale_fac_;
+    const Real e_floor_local_ =
+        eos_.InternalEnergyFromDensityTemperature(rho, temp_floor_, lambda_);
+    // more robust case for rho-T floors >> setting e_floor to (tigher) local minimum if
+    // needed.
+    e_floor_ = std::max(e_floor_, e_floor_local_);
     const Real ehat_trial =
         What * (qbar - mu * rbarsq) + vhatsq * What * robust::ratio(What, 1.0 + What);
     used_energy_floor_ = false;
@@ -178,7 +183,7 @@ class Residual {
   const Real x1_, x2_, x3_;
   const Real floor_scale_fac_;
   Real lambda_[2];
-  Real rho_floor_, e_floor_, gam_max_, e_max_;
+  Real rho_floor_, e_floor_, temp_floor_, gam_max_, e_max_;
   bool used_density_floor_, used_energy_floor_, used_energy_max_, used_gamma_max_;
 
   KOKKOS_FORCEINLINE_FUNCTION
@@ -328,8 +333,8 @@ class ConToPrim {
     const Real igdet = 1.0 / g.gdet;
 
     Real rhoflr = 0.0;
-    Real epsflr;
-    bounds.GetFloors(x1, x2, x3, rhoflr, epsflr);
+    Real epsflr, tmpflr;
+    bounds.GetFloors(x1, x2, x3, rhoflr, epsflr, tmpflr);
     rhoflr *= floor_scale_fac_;
     epsflr *= floor_scale_fac_;
     Real gam_max, eps_max;

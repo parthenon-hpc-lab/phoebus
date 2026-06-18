@@ -140,30 +140,40 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
       Real rho0 = pin->GetOrAddReal("fixup", "rho0_floor", 0.0);
       Real sie0 = pin->GetOrAddReal("fixup", "sie0_floor", 0.0);
       params.Add("floor", Floors(constant_rho_sie_floor_tag, rho0, sie0));
+      params.Add("is_floor_rhoT", false);
     } else if (floor_type == "ExpX1RhoSie") {
       Real rho0 = pin->GetOrAddReal("fixup", "rho0_floor", 0.0);
       Real sie0 = pin->GetOrAddReal("fixup", "sie0_floor", 0.0);
       Real rp = pin->GetOrAddReal("fixup", "rho_exp_floor", -2.0);
       Real sp = pin->GetOrAddReal("fixup", "sie_exp_floor", -1.0);
       params.Add("floor", Floors(exp_x1_rho_sie_floor_tag, rho0, sie0, rp, sp));
+      params.Add("is_floor_rhoT", false);
     } else if (floor_type == "ExpX1RhoU") {
       Real rho0 = pin->GetOrAddReal("fixup", "rho0_floor", 0.0);
       Real sie0 = pin->GetOrAddReal("fixup", "u0_floor", 0.0);
       Real rp = pin->GetOrAddReal("fixup", "rho_exp_floor", -2.0);
       Real sp = pin->GetOrAddReal("fixup", "u_exp_floor", -3.0);
       params.Add("floor", Floors(exp_x1_rho_u_floor_tag, rho0, sie0, rp, sp));
+      params.Add("is_floor_rhoT", false);
     } else if (floor_type == "X1RhoSie") {
       Real rho0 = pin->GetOrAddReal("fixup", "rho0_floor", 0.0);
       Real sie0 = pin->GetOrAddReal("fixup", "u0_floor", 0.0);
       Real rp = pin->GetOrAddReal("fixup", "rho_exp_floor", -2.0);
       Real sp = pin->GetOrAddReal("fixup", "u_exp_floor", -3.0);
       params.Add("floor", Floors(x1_rho_sie_floor_tag, rho0, sie0, rp, sp));
+      params.Add("is_floor_rhoT", false);
     } else if (floor_type == "RRhoSie") {
       Real rho0 = pin->GetOrAddReal("fixup", "rho0_floor", 0.0);
       Real sie0 = pin->GetOrAddReal("fixup", "u0_floor", 0.0);
       Real rp = pin->GetOrAddReal("fixup", "rho_exp_floor", -2.0);
       Real sp = pin->GetOrAddReal("fixup", "u_exp_floor", -3.0);
       params.Add("floor", Floors(r_rho_sie_floor_tag, rho0, sie0, rp, sp));
+      params.Add("is_floor_rhoT", false);
+    } else if (floor_type == "ConstantRhoTemp") {
+      Real rho0 = pin->GetOrAddReal("fixup", "rho0_floor", 0.0);
+      Real temp0 = pin->GetOrAddReal("fixup", "temp0_floor", 0.0);
+      params.Add("floor", Floors(constant_rho_temp_floor_tag, rho0, temp0));
+      params.Add("is_floor_rhoT", true);
     } else {
       PARTHENON_FAIL("invalid <fixup>/floor_type input");
     }
@@ -351,6 +361,9 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
   Bounds *pbounds = fix_pkg->MutableParam<Bounds>("bounds");
   const Real h_min = eos_pkg->Param<Real>("h_min");
 
+  // checks if we're using a non-standard floor (e.g. not rho-sie based)
+  const bool is_floor_rhoT = fix_pkg->Param<bool>("is_floor_rhoT");
+
   // BLB: Setting EOS bnds for Ceilings/Floors here.
   pbounds->SetEOSBnds(eos_pkg);
 
@@ -377,9 +390,9 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
                               // finding.
         eos_lambda[1] = std::log10(v(b, tmp, k, j, i)); // use last temp as initial guess
 
-        double rho_floor, sie_floor;
+        double rho_floor, sie_floor, temp_floor;
         bounds.GetFloors(coords.Xc<1>(k, j, i), coords.Xc<2>(k, j, i),
-                         coords.Xc<3>(k, j, i), rho_floor, sie_floor);
+                         coords.Xc<3>(k, j, i), rho_floor, sie_floor, temp_floor);
         double gamma_max, e_max;
         bounds.GetCeilings(coords.Xc<1>(k, j, i), coords.Xc<2>(k, j, i),
                            coords.Xc<3>(k, j, i), gamma_max, e_max);
@@ -396,6 +409,7 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
 
         Real rho_floor_max = rho_floor;
         Real u_floor_max = rho_floor * sie_floor;
+        Real T_floor_max = temp_floor;
 
         bool floor_applied = false;
         bool ceiling_applied = false;
@@ -434,11 +448,19 @@ TaskStatus ApplyFloorsImpl(T *rc, IndexDomain domain = IndexDomain::entire) {
 
         Real drho = rho_floor_max - v(b, prho, k, j, i);
         Real du = u_floor_max - v(b, peng, k, j, i);
+        Real dT = T_floor_max - v(b, tmp, k, j, i);
 
-        if (drho > 0. || du > 0.) {
+        if (drho > 0. || du > 0. && !is_floor_rhoT) {
           floor_applied = true;
           drho = std::max<Real>(drho, du / sie_floor);
           du = std::max<Real>(du, sie_floor * drho);
+        } else if (drho > 0. || dT > 0. && is_floor_rhoT) {
+          floor_applied = true;
+          // rho-T consistent energy density (temp floor dependent)
+          du = std::max<Real>(du, eos.InternalEnergyFromDensityTemperature(
+                                      rho_floor_max, T_floor_max, eos_lambda) *
+                                          rho_floor_max -
+                                      v(b, peng, k, j, i));
         }
 
         Real dcrho, dS[3], dBcons[3], dtau, dyecons;
