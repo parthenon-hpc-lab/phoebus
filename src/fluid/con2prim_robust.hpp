@@ -104,7 +104,7 @@ class Residual {
   KOKKOS_FORCEINLINE_FUNCTION
   Real ehat_mu(const Real mu, const Real qbar, const Real rbarsq, const Real vhatsq,
                const Real What) {
-    const Real rho = rhohat_mu(robust::ratio(1.0, What));
+    Real rho = rhohat_mu(robust::ratio(1.0, What));
     bounds_.GetFloors(x1_, x2_, x3_, rho, e_floor_, temp_floor_);
     e_floor_ *= floor_scale_fac_;
     const Real e_floor_local_ =
