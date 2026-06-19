@@ -1,5 +1,6 @@
 import progenitors
 import seos
+import os
 
 import numpy as np
 
@@ -37,16 +38,18 @@ class ADMSolver:
 
     '''
 
-    def __init__(self, problem: str, grid: np.ndarray, DATPATH: str, EOSPATH: str, interp_method = 'cubic', bc_type = 'clamped', num_iterations = 100):
+    def __init__(self, problem: str, DATPATH: str, EOSPATH: str, use_rho_cut = True, rho_cut = 2.0e3, 
+                 use_rad_cut = False, rad_cut = 1e9, use_custom_grid = False, custom_grid = np.zeros(1), 
+                 zones=10000, interp_method = 'cubic', bc_type = 'clamped', num_iterations = 100):
         self.problem    = problem
         self.DATPATH    = DATPATH
         self.EOSPATH    = EOSPATH
         self.n          = num_iterations
-        self.grid       = grid # desired output grid/domain
         self.method     = interp_method
         self.bounds     = bc_type
+        self.zones      = zones
 
-        self.loadData()
+        self.getGridPlusData( use_rho_cut, rho_cut, use_rad_cut, rad_cut, use_custom_grid, custom_grid )
 
     def interp( self, y: np.ndarray ):
 
@@ -60,7 +63,8 @@ class ADMSolver:
             return akima(self.r0, y, method='makima')
 
 
-    def loadData(self, interp_method='cubic'):
+    def getGridPlusData( self, use_rho_cut: bool, rho_cut: float, use_rad_cut: bool, rad_cut: float, 
+                        use_custom_grid: bool, custom_grid: np.ndarray ):
         
         if self.problem == 'stellarcollapse':
             prof = np.loadtxt(self.DATPATH)
@@ -82,6 +86,16 @@ class ADMSolver:
         omega       = prof[:, 7]
         abar        = prof[:, 8]
         zbar        = prof[:, 9]
+
+        # now we make the new phoebus grid, depending on the given criteria
+        # all grids (except custom) are uniform and do NOT go to zero (for now), extrapolation occurs after ADM calculations
+        if use_rho_cut:
+            irho = np.abs(self.rho0 - rho_cut).argmin() # finding index of nearest density to rho_cut
+            self.grid = np.linspace(1e2, self.r0[irho], self.zones)
+        elif use_rad_cut:
+            self.grid = np.linspace(1e2, rad_cut, self.zones)
+        elif custom_grid:
+            self.grid = custom_grid
         
         # finding energy density (consistent with eos) since we don't include that in profiles:
         if self.problem == "stellartable":
@@ -332,7 +346,7 @@ class ADMSolver:
         return rho_adm, P_adm, S_adm, Srr_adm
 
 
-    def iterate( self, verbose = False):
+    def iterate( self, converge_criteria = 1.0e-12, verbose = False):
         
         ### INITIAL ADM QUANTITIES
         rho_adm, P_adm, S_adm = self.calculateADM()
@@ -346,10 +360,8 @@ class ADMSolver:
             if verbose: # TODO: add a more informative print statement here
                 print(f'{i: 01d} {np.max(abs(alpha)): 04.5e} {np.max(abs(alpha_prev- alpha)): 04.5e}')
 
-            if np.max(abs(alpha_prev - alpha)) < 1.0e-12:
-                break
-            # adding a new convergence criteria (slightly looser, not sure why the original value was selected.)
-            if np.max(abs(alpha_prev - alpha)) < 6.0e-12:
+            # default criteria is 1e-12, loosening to 6e-12 works as well.
+            if np.max(abs(alpha_prev - alpha)) < converge_criteria:
                 break
 
             if i == (self.n - 1):
@@ -360,7 +372,63 @@ class ADMSolver:
         return rho_adm, P_adm, S_adm, Srr_adm, a, K, alpha
 
     def extrapolateData( self ):
-        pass
 
-    def saveData( self, fout: str, zones = 10000 ):
-        pass
+        # all final output grids will be uniform once extrapolated to zero.
+        r = np.linspace(0, self.grid[-1], self.zones)
+
+        rho_adm0, P_adm0, S_adm0, Srr_adm0, a0, K0, alpha0 = self.iterate(doplot=False)
+
+        # we need interpolators for these (using the input grid for creation, then extrapolating)
+        self.rho_adm = self.interp( rho_adm0 )(r, extrapolate=True)
+        self.P_adm = self.interp( P_adm0 )(r, extrapolate=True)
+        self.S_adm = self.interp( S_adm0 )(r, extrapolate=True)
+        self.Srr_adm = self.interp( Srr_adm0 )(r, extrapolate=True)
+        
+        # TODO: determine if we want to save the metric or not (e.g. do we need these?)
+        a = self.interp( a0 )(r, extrapolate=True)
+        K = self.interp( K0 )(r, extrapolate=True)
+        alpha = self.interp(  alpha0)(r, extrapolate=True)
+
+        self.grid0 = r # new grid for r -> 0!
+        self.rho   = self.rho_m_int(r, extrapolate=True)
+        # other primitives from profile
+        self.vel    = self.v_int(r, extrapolate=True)
+        self.press  = self.p_int(r, extrapolate=True)
+        self.ye     = self.ye_int(r, extrapolate=True)
+        self.eps    = self.eps_int(r, extrapolate=True)  
+        self.temp   = self.temp_int(r, extrapolate=True)
+
+
+    def saveData( self, filename: str, OUTPATH='', verbose=False):
+        
+        # final profile for PHOEBUS input... conversions here???
+        phb_profile = np.columnstack([
+            self.grid0,
+            self.rho,
+            self.temp,
+            self.ye,
+            self.eps,
+            self.vel,
+            self.press,
+            self.rho_adm,
+            self.P_adm,
+            self.S_adm,
+            self.Srr_adm
+        ])
+
+        fmt_header = '\s\s'.join(['%-20s'] * 11)
+        tup_header = ( 'radius [cm]', 'density [g/cm^3]', 'temperature [K]',  'ye', 'sie [erg/g]', 'velocity [cm/s]','pressure [dyne/cm^2]',  'density [ADM]', 'pressure [ADM]', 'S [ADM]', 'S_rr [ADM]')
+
+        # TODO: start here to fix output structure
+        # TODO: should the option to do units conversion be added here? probably, but outsource to another library/file and add detailed verbose i/o for *.pin files
+
+        np.savetxt(
+            os.path.join(OUTPATH, f'.prof'),
+            phb_profile,
+            delimiter   ='\s\s',
+            fmt         = '%20.15e',
+            header      = f'{model_type.upper()} profile from model `{model_name}`\n{fmt_header % tup_header}'
+        )
+
+        if verbose: print(f'>>> saved {model_type.upper()} profile from model `{model_name}` at time {time:%.4f} s to {OUTDIR}.')
+        
