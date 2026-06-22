@@ -399,7 +399,7 @@ class ADMSolver:
         self.temp   = self.temp_int(r, extrapolate=True)
 
 
-    def saveData( self, filename: str, OUTPATH='', verbose=False):
+    def saveData( self, filename: str, OUTPATH='', save_converted_prof= True,verbose=False):
         
         # final profile for PHOEBUS input... conversions here???
         phb_profile = np.columnstack([
