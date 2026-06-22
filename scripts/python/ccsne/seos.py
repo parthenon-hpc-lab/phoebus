@@ -2,7 +2,7 @@ from singularity_eos import StellarCollapse, Helmholtz
 import numpy as np
 
 
-def CalculateInternalEnergy_StellarCollapse(rho, T, ye, filename, verbose=False):
+def calculate_eos_energy_stellarcollapse(rho, T, ye, filename ):
     eos = StellarCollapse(filename, use_sp5=False, filter_bmod=True)
     nlambda = eos.nlambda  # get number of elements per lambda
     lmbda = np.zeros(nlambda, dtype=np.double)
@@ -14,10 +14,9 @@ def CalculateInternalEnergy_StellarCollapse(rho, T, ye, filename, verbose=False)
         eps[i] = eos.InternalEnergyFromDensityTemperature(rho[i], T[i], lmbda)
         u[i] = eps[i] * rho[i]
 
-    # if verbose: print(nlambda, lmbda)
     return eps, u
 
-def CalculateInternalEnergy_Helmholtz(rho, T, abar, zbar, filename='/home/u1/lawhite/singularity-eos/data/helmholtz/helm_table.dat', verbose=False):
+def calculate_eos_energy_helmholtz(rho, T, abar, zbar, filename='/home/u1/lawhite/singularity-eos/data/helmholtz/helm_table.dat'):
     eos = Helmholtz(filename)
     nlambda = eos.nlambda  # get number of elements per lambda
     lmbda = np.zeros(nlambda, dtype=np.double)
@@ -30,11 +29,10 @@ def CalculateInternalEnergy_Helmholtz(rho, T, abar, zbar, filename='/home/u1/law
         eps[i] = eos.InternalEnergyFromDensityTemperature(rho[i], T[i], lmbda)
         u[i] = eps[i] * rho[i]
 
-    # if verbose: print(nlambda, lmbda)
     return eps, u
 
 
-def get_EOS_bounds( filename: str, eos_type='stellarcollapse') -> np.ndarray:
+def get_eos_bounds( filename: str, eos_type='stellarcollapse') -> np.ndarray:
 
     if eos_type.lower().strip('\s') == 'stellarcollapse':
         eos = StellarCollapse(filename, use_sp5=False, filter_bmod=True)

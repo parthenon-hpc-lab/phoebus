@@ -1,6 +1,4 @@
-import progenitors
-import seos
-import os
+from seos import *
 
 import numpy as np
 
@@ -40,7 +38,8 @@ class ADMSolver:
 
     def __init__(self, problem: str, DATPATH: str, EOSPATH: str, use_rho_cut = True, rho_cut = 2.0e3, 
                  use_rad_cut = False, rad_cut = 1e9, use_custom_grid = False, custom_grid = np.zeros(1), 
-                 zones=10000, interp_method = 'cubic', bc_type = 'clamped', num_iterations = 100):
+                 zones=10000, interp_method = 'cubic', bc_type = 'clamped', num_iterations = 100, 
+                 converge_criteria = 1.0e-12, verbose = True):
         self.problem    = problem
         self.DATPATH    = DATPATH
         self.EOSPATH    = EOSPATH
@@ -48,8 +47,10 @@ class ADMSolver:
         self.method     = interp_method
         self.bounds     = bc_type
         self.zones      = zones
+        self.conv_crit  = converge_criteria
+        self.verbose    = verbose
 
-        self.getGridPlusData( use_rho_cut, rho_cut, use_rad_cut, rad_cut, use_custom_grid, custom_grid )
+        self.get_grid_data( use_rho_cut, rho_cut, use_rad_cut, rad_cut, use_custom_grid, custom_grid )
 
     def interp( self, y: np.ndarray ):
 
@@ -63,7 +64,7 @@ class ADMSolver:
             return akima(self.r0, y, method='makima')
 
 
-    def getGridPlusData( self, use_rho_cut: bool, rho_cut: float, use_rad_cut: bool, rad_cut: float, 
+    def get_grid_data( self, use_rho_cut: bool, rho_cut: float, use_rad_cut: bool, rad_cut: float, 
                         use_custom_grid: bool, custom_grid: np.ndarray ):
         
         if self.problem == 'stellarcollapse':
@@ -94,16 +95,16 @@ class ADMSolver:
             self.grid = np.linspace(1e2, self.r0[irho], self.zones)
         elif use_rad_cut:
             self.grid = np.linspace(1e2, rad_cut, self.zones)
-        elif custom_grid:
+        elif use_custom_grid:
             self.grid = custom_grid
         
         # finding energy density (consistent with eos) since we don't include that in profiles:
         if self.problem == "stellartable":
          
             if self.eosfilename.lower() == 'helmholtz':
-                eps, u = CalculateInternalEnergy_Helmholtz( self.rho0, temp, abar, zbar )
+                eps, u = calculate_eos_energy_helmholtz( self.rho0, temp, abar, zbar )
             else:
-                eps, u = CalculateInternalEnergy_StellarCollapse( self.rho0, temp, ye, self.eosfilename )
+                eps, u = calculate_eos_energy_stellarcollapse( self.rho0, temp, ye, self.eosfilename )
             
             rho = self.rho0 + u / c ** 2.0  # energy density
 
@@ -118,7 +119,7 @@ class ADMSolver:
         self.vang_int   = self.interp( omega )
 
 
-    def calculateNewtonianMetric( self ):
+    def calculate_newtonian_metric( self ):
         # TODO: still need to find a reference for this...
 
         phi = np.zeros(len(self.grid))
@@ -144,7 +145,7 @@ class ADMSolver:
         return alpha2, a2
 
 
-    def calculateInitialADM( self ):
+    def calculate_initial_ADM( self ):
         
         # TODO: also find a reference for this method, and iteration...
 
@@ -155,7 +156,7 @@ class ADMSolver:
         if self.problem == "tov":
             return -1, -1, -1 # we can come back to this case if needed...
 
-        alpha2, a2 = self.CalculateMetricForNewtonian(self.grid)
+        alpha2, a2 = self.calculate_newtonian_metric()
 
         rho_adm = alpha2 * self.rho_int(self.grid) * gamma2
 
@@ -178,7 +179,7 @@ class ADMSolver:
 
 
 
-    def calculateMetric( self, rho_adm: np.ndarray, P_adm: np.ndarray, S_adm: np.ndarray ):
+    def calculate_metric( self, rho_adm: np.ndarray, P_adm: np.ndarray, S_adm: np.ndarray ):
         
         # interpolated quantities
         rho_adm_int     = self.interp( rho_adm )
@@ -306,7 +307,7 @@ class ADMSolver:
         return a, K, alpha, beta
 
 
-    def calculateADM( self, a, alpha, beta ):
+    def calculate_ADM( self, a, alpha, beta ):
 
         r = self.grid
 
@@ -346,37 +347,37 @@ class ADMSolver:
         return rho_adm, P_adm, S_adm, Srr_adm
 
 
-    def iterate( self, converge_criteria = 1.0e-12, verbose = False):
+    def iterate( self ):
         
         ### INITIAL ADM QUANTITIES
-        rho_adm, P_adm, S_adm = self.calculateADM()
+        rho_adm, P_adm, S_adm = self.calculate_initial_ADM()
         r = self.grid
         alpha_prev = np.sqrt(self.alpha2_int(r))
 
         for i in range( self.n ):
 
-            a, K, alpha, beta = self.calculateMetric(r, rho_adm, P_adm, S_adm)
+            a, K, alpha, beta = self.calculate_metric(r, rho_adm, P_adm, S_adm)
 
-            if verbose: # TODO: add a more informative print statement here
-                print(f'{i: 01d} {np.max(abs(alpha)): 04.5e} {np.max(abs(alpha_prev- alpha)): 04.5e}')
+            if self.verbose: # TODO: add a more informative print statement here
+                print(f'{i: 02d} {np.max(abs(alpha)): 04.5e} {np.max(abs(alpha_prev- alpha)): 04.5e}')
 
             # default criteria is 1e-12, loosening to 6e-12 works as well.
-            if np.max(abs(alpha_prev - alpha)) < converge_criteria:
+            if np.max(abs(alpha_prev - alpha)) < self.conv_crit:
                 break
 
             if i == (self.n - 1):
-                raise ArithmeticError(f'>>> ADM calculation has not converged after {self.n} iterations.')
+                raise ArithmeticError(f'ADM calculation has not converged after {self.n} iterations.')
             alpha_prev = alpha
-            rho_adm, P_adm, S_adm, Srr_adm = self.CalculateADM(r, a, K, alpha, beta)
+            rho_adm, P_adm, S_adm, Srr_adm = self.calculate_ADM(r, a, K, alpha, beta)
 
         return rho_adm, P_adm, S_adm, Srr_adm, a, K, alpha
 
-    def extrapolateData( self ):
+    def extrapolate_data( self ):
 
         # all final output grids will be uniform once extrapolated to zero.
         r = np.linspace(0, self.grid[-1], self.zones)
 
-        rho_adm0, P_adm0, S_adm0, Srr_adm0, a0, K0, alpha0 = self.iterate(doplot=False)
+        rho_adm0, P_adm0, S_adm0, Srr_adm0, a0, K0, alpha0 = self.iterate()
 
         # we need interpolators for these (using the input grid for creation, then extrapolating)
         self.rho_adm = self.interp( rho_adm0 )(r, extrapolate=True)
@@ -399,9 +400,8 @@ class ADMSolver:
         self.temp   = self.temp_int(r, extrapolate=True)
 
 
-    def saveData( self, filename: str, OUTPATH='', save_converted_prof= True,verbose=False):
-        
-        # final profile for PHOEBUS input... conversions here???
+    def get_final_profile( self ):
+
         phb_profile = np.columnstack([
             self.grid0,
             self.rho,
@@ -416,19 +416,4 @@ class ADMSolver:
             self.Srr_adm
         ])
 
-        fmt_header = '\s\s'.join(['%-20s'] * 11)
-        tup_header = ( 'radius [cm]', 'density [g/cm^3]', 'temperature [K]',  'ye', 'sie [erg/g]', 'velocity [cm/s]','pressure [dyne/cm^2]',  'density [ADM]', 'pressure [ADM]', 'S [ADM]', 'S_rr [ADM]')
-
-        # TODO: start here to fix output structure
-        # TODO: should the option to do units conversion be added here? probably, but outsource to another library/file and add detailed verbose i/o for *.pin files
-
-        np.savetxt(
-            os.path.join(OUTPATH, f'.prof'),
-            phb_profile,
-            delimiter   ='\s\s',
-            fmt         = '%20.15e',
-            header      = f'{model_type.upper()} profile from model `{model_name}`\n{fmt_header % tup_header}'
-        )
-
-        if verbose: print(f'>>> saved {model_type.upper()} profile from model `{model_name}` at time {time:%.4f} s to {OUTDIR}.')
-        
+        return phb_profile
