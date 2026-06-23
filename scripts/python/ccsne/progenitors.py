@@ -22,6 +22,10 @@ import pandas as pd
 import numpy as np
 import os
 
+# we won't need this after testing
+from scipy.interpolate import import CubicSpline as cubic
+
+
 from convert import convert_PHB_profile, make_summary_file
 
 
@@ -159,6 +163,106 @@ def get_GR1D_profile( PATH: str, at_bounce = True, time = -1, verbose = False ) 
     
     return profnp, time
 
+
+### ---------------------------------------------------------------
+### ------------ data handling utilities for going from lagrangian-style grids (most 1d codes, mass coord) to eulerian resolution for phoebus
+
+# takes a weighted moving average of data, intended for smoothing of velocity profiles after subsampling...
+def wmavg( data, n=1, exp=1, use_inverse=True, avg_edges=True, verbose=False):
+    datavg = np.copy(data)
+
+    # constructing our array of weights
+    if use_inverse:
+        ws = np.ones(n) / ((np.arange(n) + 2) ** exp) 
+        weights = np.concatenate((ws[::-1], [1], ws), axis=0)
+    else:
+        ws = np.arange(n) + 1
+        weights = np.concatenate((ws[::-1], [1], ws), axis=0)
+    if verbose: print(weights)
+
+    # applying weights to the data from indices n, i - n.    
+    for i in range(n, data.size - n): 
+            datavg[i] = np.sum(data[i - n: i + 1 + n] * weights) / np.sum(weights)
+
+    # handling averaging from the edges inward (i.e. the first n zones and the last i - n zones)
+    # if not enabled, you can get weird edge effects or discontinuities!
+    if avg_edges:
+        
+        for i in range(n):
+            datavg[i] = np.sum(data[: (2*i) + 1] * weights[n - i: n + i + 1]) / np.sum(weights[n - i: n + i + 1])
+            datavg[-(i + 1)] = np.sum(data[-(2*i) - 1:] * weights[n - i: n + i + 1]) / np.sum(weights[n - i: n + i + 1])
+            if verbose:
+                print(i, data[: (2*i) + 1], weights[n - i: n + i + 1])
+                print(i, data[-(2*i) - 1:], weights[n - i: n + i + 1])
+        
+    return datavg
+
+def interp_to_eulerian( prof, factor = 4, use_drad = False, drad = 1e7):
+
+    nzones  = x.size
+    rad0     = prof[:, 0] # we assume the whole profile is passed in.
+    drad0   = (rad0[-1] - rad0[0]) / (nzones * factor)
+
+    # if we want to ensure a certain initial resolution in the profiles, e.g. dr = 1e7 cm
+    if use_drad:
+        while drad0 > drad:
+            factor += 1
+            drad0 = (rad0[-1] - rad0[0]) / (nzones * factor)
+    
+    rad = np.linspace(rad0[0], rad0[-1], nzones * factor)
+
+    prof_interp = np.zeros( (nzones * factor, prof.shape[1]) )
+    prof_interp[:, 0] = rad
+
+    for i in range(1, prof.shape[1] + 1):
+        prof_interp[:, i] = np.interp(rad, rad0, prof[:, i])
+
+    return prof_interp
+
+
+# KEEP FOR GENERAL TESTING/V&V!!
+# old method of sampling
+def subsample_depr( x, radius_cm, factor=4, verbose=False, get_factor=False, uniform=False):
+    nzones = x.size # number of zones within the mesa raw data
+
+    if uniform: 
+        total_radius = radius_cm.iloc[-1] - radius_cm.iloc[0] # total radial domain of the mesa profile
+        dr = total_radius / (nzones * factor) # << new uniform radiial spacing
+        
+        if get_factor: 
+            while dr > 1e7:
+                factor += 1
+                dr = total_radius / (nzones * factor)
+
+        if verbose:
+            print(f'new radial spacing:\t{dr:1.4e}')
+            print(f'zone factor:\t{factor}')
+
+        new_grid = np.linspace(radius_cm.iloc[0], radius_cm.iloc[-1], nzones * factor)
+    
+    else:
+        unif_radius = 5e9 - radius_cm.iloc[0] 
+        unif_nzones = int(unif_radius / 2e7) # ensuring high resolution within the core to capture < 5e9 cm
+        log_nzones = int(nzones * 0.70 * factor) # assuming 70% of the zones don't capture the core, multiplying by the general factor
+        
+        unif_grid = np.linspace(radius_cm.iloc[0], 5e9, unif_nzones)
+        log_grid = np.logspace( np.log10(5e9), np.log10(radius_cm.iloc[-1]), log_nzones)
+        new_grid = np.concatenate((unif_grid, log_grid[1:]), axis=0)
+
+        if verbose:
+            print(f'new uniform spacing:\t{unif_radius / unif_nzones :1.4e}')
+            print(f'new log spacing:\t{np.log10( log_grid[1] - log_grid[0]):1.4e}')
+            print(f'zone factor (log):\t{factor}')
+
+    cinterp = cubic( radius_cm, x, extrapolate = None)
+    
+    if get_factor:
+        return cinterp(new_grid), factor
+    return cinterp(new_grid)
+
+
+### ---------------------------------------------------------------
+### ------------ handles saving profiles to either adm.py input or phoebus style input (in physical and code units)
 
 def save_raw_profile( profile: np.ndarray, model_name: str, model_type: str, time = 0.0, OUTDIR = '', verbose = True ):
     

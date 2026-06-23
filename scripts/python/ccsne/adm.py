@@ -402,6 +402,8 @@ class ADMSolver:
 
     def get_final_profile( self ):
 
+        self.extrapolate_data() # this actually does the full pipeline!
+
         phb_profile = np.columnstack([
             self.grid0,
             self.rho,
