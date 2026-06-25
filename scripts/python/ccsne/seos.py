@@ -34,11 +34,11 @@ def calculate_eos_energy_helmholtz(rho, T, abar, zbar, filename='/home/u1/lawhit
 
 def get_eos_bounds( filename: str, eos_type='stellarcollapse') -> np.ndarray:
 
-    if eos_type.lower().strip('\s') == 'stellarcollapse':
+    if eos_type.lower().strip() == 'stellarcollapse':
         eos = StellarCollapse(filename, use_sp5=False, filter_bmod=True)
         return np.asarray([eos.rhoMin, eos.rhoMax, eos.TMin, eos.TMax, eos.sieMin, eos.sieMax, eos.YeMin, eos.YeMax])
     
-    elif eos_type.lower().strip('\s') == 'helmholtz':
+    elif eos_type.lower().strip() == 'helmholtz':
         raise LookupError(f'the Helmholtz EOS has no infrastructure to retrieve bounds through python bindings. please find bounds manually.')
 
     else:

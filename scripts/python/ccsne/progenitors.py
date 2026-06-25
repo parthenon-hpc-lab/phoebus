@@ -23,7 +23,7 @@ import numpy as np
 import os
 
 # we won't need this after testing
-from scipy.interpolate import import CubicSpline as cubic
+from scipy.interpolate import CubicSpline as cubic
 
 
 from convert import convert_PHB_profile, make_summary_file
@@ -45,7 +45,7 @@ def get_MESA_profile( PATH: str, header=4, verbose=False ) -> np.ndarray:
          omega = prof['omega']
     except KeyError:
         omega = np.zeros( len(prof) )
-        raise UserWarning('angular velocity not found, setting to zero.')
+        print('>>> angular velocity not found, setting to zero.')
         
     # new numpy array of needed quantities.
     profnp = np.column_stack([
@@ -55,7 +55,7 @@ def get_MESA_profile( PATH: str, header=4, verbose=False ) -> np.ndarray:
                 prof['pressure'],
                 prof['ye'],
                 prof['temperature'],
-                prof['sie'],
+                prof['energy'],
                 omega,
                 prof['abar'],
                 prof['zbar']
@@ -78,7 +78,7 @@ def get_KEPLER_profile( PATH: str, header=0, verbose=False ) -> np.ndarray:
          omega = prof['cell angular velocity']
     except KeyError:
         omega = np.zeros( len(prof) )
-        raise UserWarning('angular velocity not found, setting to zero.')
+        print('>>> angular velocity not found, setting to zero.')
         
     # new numpy array of needed quantities.
     profnp = np.column_stack([
@@ -122,7 +122,7 @@ def get_GR1D_profile( PATH: str, at_bounce = True, time = -1, verbose = False ) 
         has_omega = True
     except:
         has_omega = False
-        raise UserWarning('angular velocity not found, setting to zero.')
+        print('>>> angular velocity not found, setting to zero.')
     
     if has_omega:  
         times_common = set(rho_times) & set(eps_times) & set(temp_times) & set(ye_times) & set(p_times) & set(v_times) & set(zbar_times) & set(abar_times) & set(omg_times)
@@ -199,7 +199,7 @@ def wmavg( data, n=1, exp=1, use_inverse=True, avg_edges=True, verbose=False):
 
 def interp_to_eulerian( prof, factor = 4, use_drad = False, drad = 1e7):
 
-    nzones  = x.size
+    nzones  = prof.shape[0]
     rad0     = prof[:, 0] # we assume the whole profile is passed in.
     drad0   = (rad0[-1] - rad0[0]) / (nzones * factor)
 
@@ -214,7 +214,7 @@ def interp_to_eulerian( prof, factor = 4, use_drad = False, drad = 1e7):
     prof_interp = np.zeros( (nzones * factor, prof.shape[1]) )
     prof_interp[:, 0] = rad
 
-    for i in range(1, prof.shape[1] + 1):
+    for i in range(1, prof.shape[1]):
         prof_interp[:, i] = np.interp(rad, rad0, prof[:, i])
 
     return prof_interp
@@ -267,24 +267,24 @@ def subsample_depr( x, radius_cm, factor=4, verbose=False, get_factor=False, uni
 def save_raw_profile( profile: np.ndarray, model_name: str, model_type: str, time = 0.0, OUTDIR = '', verbose = True ):
     
     # formatting for the header (to align with columns)
-    fmt_header = '\s\s'.join(['%-20s'] * 10)
+    fmt_header = '\t'.join(['%-20s'] * 10)
     tup_header = ( 'radius [cm]', 'velocity [cm/s]', 'density [g/cm^3]', 'pressure [dyne/cm^2]', 'ye', 'temperature [K]', 'sie [erg/g]', 'omega [rad/s]', 'abar', 'zbar')
 
     np.savetxt(
         os.path.join(OUTDIR, f'{model_name.lower()}_{model_type.lower()}.prof'),
         profile,
-        delimiter   ='\s\s',
+        delimiter   ='\t',
         fmt         = '%20.15e',
-        header      = f'{model_type.upper()} profile from model `{model_name}`\n{fmt_header % tup_header}'
+        header      = f'initial {model_type.upper()} profile from model `{model_name}` at time {time:.4f} s.\n{fmt_header % tup_header}'
     )
 
-    if verbose: print(f'>>> saved raw profile from {model_type.upper()} model `{model_name}` at time {time:%.4f} s to {OUTDIR}.')
+    if verbose: print(f'>>> saved raw profile from {model_type.upper()} model `{model_name}` at time {time:.4f} s to {OUTDIR}.')
 
 
-def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, eos_type = 'stellarcollapse', OUTDIR = '', save_unconverted = True, save_summary = True, verbose = True ):
+def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, eos_path: str, eos_type = 'stellarcollapse', OUTDIR = '', save_unconverted = True, save_summary = True, verbose = True ):
 
     # formatting for header
-    fmt_header = '\s\s'.join(['%-20s'] * 11)
+    fmt_header = '\t'.join(['%-20s'] * 11)
     tup_header = ( 'radius [cm]', 'density [g/cm^3]', 'temperature [K]',  'ye', 'sie [erg/g]', 'velocity [cm/s]','pressure [dyne/cm^2]', 'density [ADM]', 'pressure [ADM]', 'S [ADM]', 'S_rr [ADM]')
     tup_header_conv = ( 'radius', 'density', 'temperature',  'ye', 'sie', 'velocity','pressure', 'density [ADM]', 'pressure [ADM]', 'S [ADM]', 'S_rr [ADM]')
     
@@ -293,11 +293,11 @@ def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, eos
         np.savetxt(
             os.path.join(OUTDIR, f'{model_name}_{model_type}_ADM.prof'),
             profile,
-            delimiter   ='\s\s',
+            delimiter   ='\t',
             fmt         = '%20.15e',
-            header      = f'primitives + ADM for {model_type.upper()} profile from model `{model_name}`\n{fmt_header % tup_header}'
+            header      = f'primitives + ADM for {model_type.upper()} profile from model `{model_name}`at time {time:.4f} s.\n{fmt_header % tup_header}'
         )
-        if verbose: print(f'>>> saved primitive + ADM profile from {model_type.upper()} model `{model_name}` to {OUTDIR}.')
+        if verbose: print(f'>>> saved primitive + ADM profile from {model_type.upper()} model `{model_name}` at time {time:.4f} s to {OUTDIR}.')
 
 
     # converting the actual profile to phoebus code units
@@ -305,17 +305,17 @@ def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, eos
 
     # creates a summary file with useful conversions and progenitor bounds
     if save_summary:
-        make_summary_file( rhoc, M0, R0, profile_conv, model_name, model_type, eos_type)
+        make_summary_file( rhoc, M0, R0, profile_conv, model_name, model_type, eos_path, eos_type)
 
     # saves the converted profile
     np.savetxt(
         os.path.join(OUTDIR, f'{model_name}_{model_type}_ADM_converted.prof'),
         profile_conv,
-        delimiter   ='\s\s',
+        delimiter   ='\t',
         fmt         = '%20.15e',
-        header      = f'converted primitives + ADM for {model_type.upper()} profile from model `{model_name}`\n{fmt_header % tup_header_conv}'
+        header      = f'converted primitives + ADM for {model_type.upper()} profile from model `{model_name} at time {time:.4f} s.`\n{fmt_header % tup_header_conv}'
     )
-    if verbose: print(f'>>> saved converted primitive + ADM profile from {model_type.upper()} model `{model_name}` to {OUTDIR}.')
+    if verbose: print(f'>>> saved converted primitive + ADM profile from {model_type.upper()} model `{model_name}` at time {time:.4f} s to {OUTDIR}.')
 
 
 ### ---------------------------------------------------------------

@@ -46,7 +46,7 @@ def convert_PHB_profile( prof: np.ndarray ) -> np.ndarray:
     return prof_conv, rhoc, M0, R0
 
 
-def make_summary_file( rhoc: float, M0: float, R0: float, prof_conv: np.ndarray, model_name: str, model_type: str, eos_type = "stellarcollapse" ) -> None:
+def make_summary_file( rhoc: float, M0: float, R0: float, prof_conv: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type = "stellarcollapse" ) -> None:
     
     try:
         fout = open(f'{model_name.lower()}_{model_type.lower()}_summary.dat', 'w')
@@ -78,7 +78,7 @@ def make_summary_file( rhoc: float, M0: float, R0: float, prof_conv: np.ndarray,
 
 
         # --- eos bounds
-        bounds = get_eos_bounds( eos_type )
+        bounds = get_eos_bounds( EOSPATH, eos_type )
 
         fout.write('# -----bounds, progenitor [phb]\n')
         fout.write( fmt % ('minimum density', bounds[0]) )

@@ -36,42 +36,57 @@ class ADMSolver:
 
     '''
 
-    def __init__(self, problem: str, DATPATH: str, EOSPATH: str, use_rho_cut = True, rho_cut = 2.0e3, 
-                 use_rad_cut = False, rad_cut = 1e9, use_custom_grid = False, custom_grid = np.zeros(1), 
-                 zones=10000, interp_method = 'cubic', bc_type = 'clamped', num_iterations = 100, 
-                 converge_criteria = 1.0e-12, verbose = True):
-        self.problem    = problem
+    def __init__(self, problem: str, DATPATH: str, EOSPATH: str, eos_type = 'stellarcollapse', use_rho_cut = True, rho_cut = 2.0e3, use_rad_cut = False, rad_cut = 1e9, zones=10000, interp_method = 'cubic', bc_type = 'clamped', num_iterations = 100, converge_criteria = 1.0e-12, extrapolate = True, verbose = True):
+        self.problem    = problem.lower()
         self.DATPATH    = DATPATH
         self.EOSPATH    = EOSPATH
+        self.eos_type   = eos_type.lower()
         self.n          = num_iterations
-        self.method     = interp_method
-        self.bounds     = bc_type
+        self.method     = interp_method.lower()
+        self.bounds     = bc_type.lower()
         self.zones      = zones
         self.conv_crit  = converge_criteria
+        self.do_extrap  = extrapolate
         self.verbose    = verbose
 
-        self.get_grid_data( use_rho_cut, rho_cut, use_rad_cut, rad_cut, use_custom_grid, custom_grid )
+        self.get_grid_data( use_rho_cut, rho_cut, use_rad_cut, rad_cut )
 
     def interp( self, y: np.ndarray ):
 
         if self.method == 'linear':
-            return linear(self.r0, y, fill_value = 'extrapolate')
+            if self.do_extrap:
+                return linear(self.r0, y, fill_value = 'extrapolate')
+            else:
+                return linear(self.r0, y)
+
         elif self.method == 'cubic':
-            return cubic(self.r0, y, bc_type=self.bounds) # default bc_type is 'not a knot'
+            return cubic(self.r0, y, bc_type=self.bounds, extrapolate=self.do_extrap) # default bc_type is 'not a knot'
         elif self.method == 'akima':
-            return akima(self.r0, y)
+            return akima(self.r0, y, extrapolate=self.do_extrap)
         elif self.method == 'makima': # modified akima
-            return akima(self.r0, y, method='makima')
+            return akima(self.r0, y, method='makima', extrapolate=self.do_extrap)
+
+    def interp_grid( self, y: np.ndarray ):
+
+        if self.method == 'linear':
+            return linear(self.grid, y, fill_value = 'extrapolate')
+        elif self.method == 'cubic':
+            return cubic(self.grid, y, bc_type=self.bounds) # default bc_type is 'not a knot'
+        elif self.method == 'akima':
+            return akima(self.grid, y)
+        elif self.method == 'makima': # modified akima
+            return akima(self.grid, y, method='makima')
 
 
-    def get_grid_data( self, use_rho_cut: bool, rho_cut: float, use_rad_cut: bool, rad_cut: float, 
-                        use_custom_grid: bool, custom_grid: np.ndarray ):
+    def get_grid_data( self, use_rho_cut: bool, rho_cut: float, use_rad_cut: bool, rad_cut: float):
         
-        if self.problem == 'stellarcollapse':
+        if self.problem == 'stellartable':
             prof = np.loadtxt(self.DATPATH)
+
         elif self.problem == 'tov':
             # come back to this if needed
             pass
+
         elif self.problem == 'homologous':
             # come back to this if needed
             pass
@@ -84,48 +99,48 @@ class ADMSolver:
         press       = prof[:, 3]
         ye          = prof[:, 4]
         temp        = prof[:, 5]
+        eps         = prof[:, 6]
         omega       = prof[:, 7]
         abar        = prof[:, 8]
         zbar        = prof[:, 9]
 
         # now we make the new phoebus grid, depending on the given criteria
-        # all grids (except custom) are uniform and do NOT go to zero (for now), extrapolation occurs after ADM calculations
+        # all grids are uniform and do NOT go to zero (for now), extrapolation occurs after ADM calculations
         if use_rho_cut:
             irho = np.abs(self.rho0 - rho_cut).argmin() # finding index of nearest density to rho_cut
             self.grid = np.linspace(1e2, self.r0[irho], self.zones)
         elif use_rad_cut:
             self.grid = np.linspace(1e2, rad_cut, self.zones)
-        elif use_custom_grid:
-            self.grid = custom_grid
         
         # finding energy density (consistent with eos) since we don't include that in profiles:
         if self.problem == "stellartable":
          
-            if self.eosfilename.lower() == 'helmholtz':
-                eps, u = calculate_eos_energy_helmholtz( self.rho0, temp, abar, zbar )
+            if self.eos_type.lower() == 'helmholtz':
+                eps, u = calculate_eos_energy_helmholtz( self.rho0, temp, abar, zbar, self.EOSPATH )
             else:
-                eps, u = calculate_eos_energy_stellarcollapse( self.rho0, temp, ye, self.eosfilename )
+                eps, u = calculate_eos_energy_stellarcollapse( self.rho0, temp, ye, self.EOSPATH )
             
-            rho = self.rho0 + u / c ** 2.0  # energy density
+            self.rho = self.rho0 + u / c ** 2.0  # energy density
 
         # the rest of our data will need interpolators to map to the new phoebus grid
         self.v_int      = self.interp( vel )
-        self.rho_int    = self.interp( rho ) # energy density, GR naming convention
+        self.rho_int    = self.interp( self.rho ) # energy density, GR naming convention
         self.p_int      = self.interp( press )
         self.rho_m_int  = self.interp( self.rho0 ) # mass density
         self.ye_int     = self.interp( ye )
         self.temp_int   = self.interp( temp )
         self.eps_int    = self.interp( eps )
-        self.vang_int   = self.interp( omega )
+        self.v_ang_int   = self.interp( omega )
 
 
     def calculate_newtonian_metric( self ):
         # TODO: still need to find a reference for this...
+        # if self.verbose: print('----- calculating metric in newtonian limit.')
 
-        phi = np.zeros(len(self.grid))
-        dphi = np.zeros(len(self.grid))
+        phi = np.zeros(self.zones)
+        dphi = np.zeros(self.zones)
 
-        for i in range(len(self.grid)):
+        for i in range(self.zones):
             I = (
                 -2.0
                 * np.pi
@@ -146,6 +161,7 @@ class ADMSolver:
 
 
     def calculate_initial_ADM( self ):
+        # if self.verbose: print('----- calculating initial ADM quantities.')
         
         # TODO: also find a reference for this method, and iteration...
 
@@ -172,18 +188,20 @@ class ADMSolver:
         ) * self.p_int(self.grid)
 
         # interpolation for our lapse function
-        self.alpha2_int = self.interp( alpha2 )
-        self.a2_int = self.interp( a2 )
+        self.alpha2_int = self.interp_grid( alpha2 )
+        self.a2_int = self.interp_grid( a2 )
         
         return rho_adm, P_adm, S_adm
 
 
 
     def calculate_metric( self, rho_adm: np.ndarray, P_adm: np.ndarray, S_adm: np.ndarray ):
+
+        # if self.verbose: print('----- calculating full metric.')
         
         # interpolated quantities
-        rho_adm_int     = self.interp( rho_adm )
-        j_adm_int       = self.interp( P_adm )
+        rho_adm_int     = self.interp_grid( rho_adm )
+        j_adm_int       = self.interp_grid( P_adm )
 
         r = self.grid
 
@@ -209,12 +227,15 @@ class ADMSolver:
         
         ## SOLVE COUPLED DIFFERENTIAL EQUATIONS FOR EXTRINSIC CURVATURE
 
-        sol = solve_ivp(f, [min(r), max(r)], V0, t_eval=r, vectorized=True)
+        sol = solve_ivp(f, [r[0], r[-1]], V0, t_eval=r, vectorized=True)
         result = sol.y
+        
+        # break if original data is too sparse and our ivp dimensions are incorrect...
+        if (result.shape[1] != self.zones):
+            raise ArithmeticError( f'initial raw profile at `{self.DATPATH}` too radially sparse for interpolation. increase the factor or decrease drad spacing and try again.')
+
         a = result[0]
         K = result[1]
-
-        print(rho_adm.size, r.size)
 
         ################# Solve for lapse
         ## INITIALIZE MATRIX
@@ -231,8 +252,8 @@ class ADMSolver:
         )
         ## BOUNDARY CONDITIONS
 
-        M = np.zeros([len(r), len(r)])
-        V = np.zeros(len(r))  # <--------  MX+V=0
+        M = np.zeros([self.zones, self.zones])
+        V = np.zeros(self.zones)  # <--------  MX+V=0
         eps = r[1] - r[0]
         A0 = (
             1.0 / a[0] ** 2 / eps ** 2
@@ -253,30 +274,30 @@ class ADMSolver:
         M[0, 0] = A0 + B0
         M[0, 1] = C0
         AL = (
-            1 / a[len(r) - 1] ** 2 / eps ** 2
-            + da[len(r) - 1] / (2 * a[len(r) - 1] ** 3.0 * eps)
-            - 1.0 / (a[len(r) - 1] ** 2.0 * r[len(r) - 1] * eps)
+            1 / a[self.zones - 1] ** 2 / eps ** 2
+            + da[self.zones - 1] / (2 * a[self.zones - 1] ** 3.0 * eps)
+            - 1.0 / (a[self.zones - 1] ** 2.0 * r[self.zones - 1] * eps)
         )
         BL = -(
-            2.0 / (a[len(r) - 1] ** 2.0 * eps ** 2)
+            2.0 / (a[self.zones - 1] ** 2.0 * eps ** 2)
             + 4
             * np.pi
             * G
             / c ** 2.0
-            * (S_adm[len(r) - 1] / c ** 2 + rho_adm[len(r) - 1])
-            + 3.0 / 2.0 * K[len(r) - 1] ** 2.0
+            * (S_adm[self.zones - 1] / c ** 2 + rho_adm[self.zones - 1])
+            + 3.0 / 2.0 * K[self.zones - 1] ** 2.0
         )
         CL = (
-            1.0 / (a[len(r) - 1] ** 2.0 * eps ** 2.0)
-            - da[len(r) - 1] / (2.0 * a[len(r) - 1] ** 3.0 * eps)
-            + 1.0 / (a[len(r) - 1] ** 2.0 * r[len(r) - 1] * eps)
+            1.0 / (a[self.zones - 1] ** 2.0 * eps ** 2.0)
+            - da[self.zones - 1] / (2.0 * a[self.zones - 1] ** 3.0 * eps)
+            + 1.0 / (a[self.zones - 1] ** 2.0 * r[self.zones - 1] * eps)
         )
-        V[len(r) - 1] = eps / r[len(r) - 1] * CL
-        M[len(r) - 1, len(r) - 2] = AL
-        M[len(r) - 1, len(r) - 1] = BL + (1.0 - eps / r[len(r) - 1]) * CL
+        V[self.zones - 1] = eps / r[self.zones - 1] * CL
+        M[self.zones - 1, self.zones - 2] = AL
+        M[self.zones - 1, self.zones - 1] = BL + (1.0 - eps / r[self.zones - 1]) * CL
 
         ## THE REST OF THE MATRIX
-        for i in range(1, len(r) - 1):
+        for i in range(1, self.zones - 1):
             A = (
                 1 / a[i] ** 2 / eps ** 2
                 + da[i] / (2 * a[i] ** 3.0 * eps)
@@ -299,7 +320,7 @@ class ADMSolver:
         def f(x):
             return np.dot(M, x) + V
 
-        sol = optimize.root(f, 100 * np.ones(len(r)))
+        sol = optimize.root(f, 100 * np.ones(self.zones))
         alpha = sol.x
 
         ################# Solve for shift
@@ -309,14 +330,16 @@ class ADMSolver:
 
     def calculate_ADM( self, a, alpha, beta ):
 
+        # if self.verbose: print('----- calculating metric in newtonian limit.')
+
         r = self.grid
 
-        rho_adm = np.zeros(len(r))
-        P_adm = np.zeros(len(r))
-        S_adm = np.zeros(len(r))
-        Srr_adm = np.zeros(len(r))
+        rho_adm = np.zeros(self.zones)
+        P_adm = np.zeros(self.zones)
+        S_adm = np.zeros(self.zones)
+        Srr_adm = np.zeros(self.zones)
 
-        for i in range(len(r)):
+        for i in range(self.zones):
             # upper metric
             g00 = -1.0 / alpha[i] ** 2.0
             g0r = beta[i] / alpha[i] ** 2.0
@@ -356,10 +379,11 @@ class ADMSolver:
 
         for i in range( self.n ):
 
-            a, K, alpha, beta = self.calculate_metric(r, rho_adm, P_adm, S_adm)
+            a, K, alpha, beta = self.calculate_metric(rho_adm, P_adm, S_adm)
 
             if self.verbose: # TODO: add a more informative print statement here
-                print(f'{i: 02d} {np.max(abs(alpha)): 04.5e} {np.max(abs(alpha_prev- alpha)): 04.5e}')
+                # print(f'{i: 2d} {np.max(abs(alpha)): 4.5e} {np.max(abs(alpha_prev - alpha)): 4.5e}')
+                print( f'\titeration {i:2d}\talpha = {np.max(abs(alpha)): 4.5e}\tdalpha = {np.max(abs(alpha_prev - alpha)): 4.5e}')
 
             # default criteria is 1e-12, loosening to 6e-12 works as well.
             if np.max(abs(alpha_prev - alpha)) < self.conv_crit:
@@ -368,43 +392,49 @@ class ADMSolver:
             if i == (self.n - 1):
                 raise ArithmeticError(f'ADM calculation has not converged after {self.n} iterations.')
             alpha_prev = alpha
-            rho_adm, P_adm, S_adm, Srr_adm = self.calculate_ADM(r, a, K, alpha, beta)
+            rho_adm, P_adm, S_adm, Srr_adm = self.calculate_ADM(a, alpha, beta)
 
         return rho_adm, P_adm, S_adm, Srr_adm, a, K, alpha
 
-    def extrapolate_data( self ):
-
-        # all final output grids will be uniform once extrapolated to zero.
-        r = np.linspace(0, self.grid[-1], self.zones)
+    # TODO: figure out if we actually need to interpolate to zero here or leave the inner boundary as is
+    # i.e. reference FLASH/BANG??
+    def calculate_all( self ):
 
         rho_adm0, P_adm0, S_adm0, Srr_adm0, a0, K0, alpha0 = self.iterate()
 
+        # if we extrapolate to zero...
+        if self.do_extrap:
+            # all final output grids will be uniform once extrapolated to zero.
+            r = np.linspace(0, self.grid[-1], self.zones)
+        else:
+            r = self.grid
+
         # we need interpolators for these (using the input grid for creation, then extrapolating)
-        self.rho_adm = self.interp( rho_adm0 )(r, extrapolate=True)
-        self.P_adm = self.interp( P_adm0 )(r, extrapolate=True)
-        self.S_adm = self.interp( S_adm0 )(r, extrapolate=True)
-        self.Srr_adm = self.interp( Srr_adm0 )(r, extrapolate=True)
+        self.rho_adm = self.interp_grid( rho_adm0 )(r)
+        self.P_adm = self.interp_grid( P_adm0 )(r)
+        self.S_adm = self.interp_grid( S_adm0 )(r)
+        self.Srr_adm = self.interp_grid( Srr_adm0 )(r)
         
         # TODO: determine if we want to save the metric or not (e.g. do we need these?)
-        a = self.interp( a0 )(r, extrapolate=True)
-        K = self.interp( K0 )(r, extrapolate=True)
-        alpha = self.interp(  alpha0)(r, extrapolate=True)
+        # a = self.interp_grid( a0 )(r)
+        # K = self.interp_grid( K0 )(r)
+        # alpha = self.interp_grid( alpha0 )(r)
 
         self.grid0 = r # new grid for r -> 0!
-        self.rho   = self.rho_m_int(r, extrapolate=True)
+        self.rho   = self.rho_m_int(r)
         # other primitives from profile
-        self.vel    = self.v_int(r, extrapolate=True)
-        self.press  = self.p_int(r, extrapolate=True)
-        self.ye     = self.ye_int(r, extrapolate=True)
-        self.eps    = self.eps_int(r, extrapolate=True)  
-        self.temp   = self.temp_int(r, extrapolate=True)
+        self.vel    = self.v_int(r)
+        self.press  = self.p_int(r)
+        self.ye     = self.ye_int(r)
+        self.eps    = self.eps_int(r)  
+        self.temp   = self.temp_int(r)
 
 
     def get_final_profile( self ):
 
-        self.extrapolate_data() # this actually does the full pipeline!
+        self.calculate_all() # this actually does the full pipeline!
 
-        phb_profile = np.columnstack([
+        phb_profile = np.column_stack([
             self.grid0,
             self.rho,
             self.temp,
