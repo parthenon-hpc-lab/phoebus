@@ -1,0 +1,55 @@
+documentation for the parameters available when using this pipeline to processing 
+CCSNe/stellar progenitors for phoebus input! see below for examples, descriptions, 
+and details on the default settings.
+
+this doc is NOT for use and only serves to explain all possible input parameters. 
+if you have questions, feel free to reach out to me on slack or through github!
+
+    law. 25 jun 2026
+----------------------------------------------------------------------------------
+parameter           example                             description + defaults + options
+
+--model-path        ../lawhite/mesa/15m_at_cc.dat       absolute or relative path to input model/data
+--model-name        aag21                               desired name/id for your model
+--model-type        MESA                                type of model, default: MESA (options: MESA, GR1D, KEPLER)
+--model-header      5                                   (optional) number of header lines in model file (default MESA: 4, default KEPLER: 1)
+--atbounce                                              (bool) if using a GR1D model, pulls data files at bounce
+--timestamp         0.3                                 (optional) if using a GR1D model and atbounce = false, gets data from timestep (in seconds)                                            
+
+--wma-vel                                               (optional, bool) enables weighted mean averaging for velocity
+--wma-all                                               (optional, bool) enables weighted mean averaging for all primitives in profile
+--wma-n             50                                  (optional) window for weighted mean average, default: 100
+--wma-exp           3                                   (optional) exponent to raise wma weights to, default: 3
+
+--factor-interp     10                                  (optional) factor to increase profile radial grid resolution by, default: 4
+--use-drad-interp                                       (optional, bool) enables radial spacing critera for interpolation instead of factor
+--drad-interp       1e7                                 (optional) if using radial spacing for interpolation, sets minimum spacing requirement in cm, default: 1e7
+
+--adm-problem       StellarTable                        (optional) type of ADM interpolation to use, default: StellarCollapse (options: StellarCollapse, tov, homologous)                       
+--eos-path          ../grsolver/SFHo.h5                 absolute or relative path to eos table (must be *.h5 file)
+--eos-type          StellarCollapse                     type of tabulated eos, default: StellarCollapse (options: StellarCollapse, Helmholtz)               
+
+--use-rhocut                                            (bool) enables a density-only cut for the new grid, 
+--rhocut            2.0e3                               (optional) if using rhocut, the density to truncate at in g/cm^3, default: 2d3
+
+--use-radcut                                            (bool) enables a radius-only cut for the new grid; keeps original inner radius
+--radcut            1.0e9                               (optional) if using radcut, the radius to truncate at in cm, default: 1e9
+
+--use-custom                                            (bool) lets user input custom grid (radial) in cm
+--custom-min        1e2                                 (optional) inner radial limit for custom grid in cm, default: 5e5
+--custom-max        4.5e9                               (optional) outer radial limit for custom grid in cm, default: 5e9
+
+--zones             1000                                (optional) desired number of grid zones for new profile, default: 10000
+--interp-method     linear                              (optional) method of interpolation for ADM solver, default: cubic (options: linear, cubic, akima, makima)
+--bc-type           clamped                             (optional) boundary conditions if using cubic interpolation, default: clamped (options: clamped, not-a-knot, periodic)
+
+--iterations        100                                 (optional) number of iterations the ADM solver will try when converging, default: 100
+--converge-criteria 1.0e-12                             (optional) 
+--extrapolate                                           (optional, bool) extrapolate the output grid to r = 0
+
+--save-path         test-profiles                       absolute or relative path to desired directory to save all output
+--save-summary                                          (optional, bool) saves summary file for cgs -> phb unit conversions and input
+--save-unconverted                                      (optional, bool) saves output for phoebus before conversion to phb units
+--save-input                                            (optional, bool) saves input parameter file for future use
+
+--depr                                                  (optional, bool) FOR TESTING ONLY

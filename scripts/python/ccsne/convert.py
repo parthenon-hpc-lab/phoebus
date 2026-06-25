@@ -5,6 +5,7 @@
     creation and provide reasonable floors/ceilings.
 
 '''
+import os
 import numpy as np
 from astropy import constants as const
 
@@ -46,22 +47,22 @@ def convert_PHB_profile( prof: np.ndarray ) -> np.ndarray:
     return prof_conv, rhoc, M0, R0
 
 
-def make_summary_file( rhoc: float, M0: float, R0: float, prof_conv: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type = "stellarcollapse" ) -> None:
+def make_summary_file( rhoc: float, M0: float, R0: float, prof_conv: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type = "stellarcollapse", OUTDIR = '') -> None:
     
     try:
-        fout = open(f'{model_name.lower()}_{model_type.lower()}_summary.dat', 'w')
-        fmt   = '%30s  %18.13e\n'
+        fout = open(os.path.join(OUTDIR, f'{model_name}_{model_type.lower()}.dat'), 'w')
+        fmt   = '%20s  %-18.13e\n'
 
-        fout.write(f'# -----summary and conversions from {model_type.upper()} progenitor {model_name}.')
-        fout.write('\n')
+        fout.write(f'# -----summary and conversions from {model_type.upper()} progenitor `{model_name}.`')
+        fout.write('\n\n')
 
         # --- characteristic quantities, length scales
         fout.write('# -----characteristic values [cgs]\n')
         fout.write( fmt % ('central density', rhoc ))
-        fout.write( fmt % ('characteristic (geom) mass', M0 ))
+        fout.write( fmt % ('characteristic mass', M0 ))
         fout.write( fmt % ('characteristic radius', R0 ) )
         fout.write('\n')
-        fout.write('-----length scales [phb]\n')
+        fout.write('# -----length scales [phb]\n')
         fout.write( fmt % ('radius, 500 km', 500e5/R0))
         fout.write( fmt % ('radius, 1e4 km', 1e9/R0))
         fout.write('\n')
@@ -92,11 +93,10 @@ def make_summary_file( rhoc: float, M0: float, R0: float, prof_conv: np.ndarray,
         fout.write('\n')
 
         # --- conversion factors
-        fout.write('# -----conversion factors [phb -> cgs]\n')
-        fout.write('# (multiply to get back to cgs)\n')
+        fout.write('# -----conversion factors, multiply to get back to cgs [phb -> cgs]\n')
         fout.write( fmt % ('radius', 1/R0 ))
         fout.write( fmt % ('density', 1/((c ** 2.0) / G / M0)))
-        fout.write( fmt % ('temperature', 1/kB, 'kB'))
+        fout.write( fmt % ('temperature', 1/kB ))
         fout.write( fmt % ('sie', c**2.0))
         fout.write( fmt % ('velocity', c ))
         fout.write( fmt % ('pressure', 1 / (G ** 3.0 / c ** 8.0 * M0 ** 2.0) ))
@@ -105,4 +105,4 @@ def make_summary_file( rhoc: float, M0: float, R0: float, prof_conv: np.ndarray,
         fout.close()
 
     except:
-        raise IOError(f'unable to write summary file for {model_type.upper()} model {model_name}.')
+        raise IOError(f'unable to write summary file for {model_type.upper()} model `{model_name}`.')

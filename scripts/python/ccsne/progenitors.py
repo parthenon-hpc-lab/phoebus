@@ -271,7 +271,7 @@ def save_raw_profile( profile: np.ndarray, model_name: str, model_type: str, tim
     tup_header = ( 'radius [cm]', 'velocity [cm/s]', 'density [g/cm^3]', 'pressure [dyne/cm^2]', 'ye', 'temperature [K]', 'sie [erg/g]', 'omega [rad/s]', 'abar', 'zbar')
 
     np.savetxt(
-        os.path.join(OUTDIR, f'{model_name.lower()}_{model_type.lower()}.prof'),
+        os.path.join(OUTDIR, f'{model_name}_{model_type.lower()}.prof'),
         profile,
         delimiter   ='\t',
         fmt         = '%20.15e',
@@ -281,7 +281,7 @@ def save_raw_profile( profile: np.ndarray, model_name: str, model_type: str, tim
     if verbose: print(f'>>> saved raw profile from {model_type.upper()} model `{model_name}` at time {time:.4f} s to {OUTDIR}.')
 
 
-def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, eos_path: str, eos_type = 'stellarcollapse', OUTDIR = '', save_unconverted = True, save_summary = True, verbose = True ):
+def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, eos_path: str, eos_type = 'stellarcollapse', time = 0.0, OUTDIR = '', save_unconverted = True, save_summary = True, verbose = True ):
 
     # formatting for header
     fmt_header = '\t'.join(['%-20s'] * 11)
@@ -291,7 +291,7 @@ def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, eos
     # saves the unconverted profile with primitives + ADM quantities
     if save_unconverted:
         np.savetxt(
-            os.path.join(OUTDIR, f'{model_name}_{model_type}_ADM.prof'),
+            os.path.join(OUTDIR, f'{model_name}_{model_type.lower()}_adm.prof'),
             profile,
             delimiter   ='\t',
             fmt         = '%20.15e',
@@ -305,15 +305,15 @@ def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, eos
 
     # creates a summary file with useful conversions and progenitor bounds
     if save_summary:
-        make_summary_file( rhoc, M0, R0, profile_conv, model_name, model_type, eos_path, eos_type)
+        make_summary_file( rhoc, M0, R0, profile_conv, model_name, model_type, eos_path, eos_type, OUTDIR)
 
     # saves the converted profile
     np.savetxt(
-        os.path.join(OUTDIR, f'{model_name}_{model_type}_ADM_converted.prof'),
+        os.path.join(OUTDIR, f'{model_name}_{model_type.lower()}_adm_converted.prof'),
         profile_conv,
         delimiter   ='\t',
         fmt         = '%20.15e',
-        header      = f'converted primitives + ADM for {model_type.upper()} profile from model `{model_name} at time {time:.4f} s.`\n{fmt_header % tup_header_conv}'
+        header      = f'converted primitives + ADM for {model_type.upper()} profile from model `{model_name}` at time {time:.4f} s.\n{fmt_header % tup_header_conv}'
     )
     if verbose: print(f'>>> saved converted primitive + ADM profile from {model_type.upper()} model `{model_name}` at time {time:.4f} s to {OUTDIR}.')
 
@@ -362,6 +362,3 @@ def find_nearest_time( target_time: float, times: set ):
 def get_tbounce( PATH: str ) -> float:
     ''' Retrieves the time of bounce from the default GR1D output.'''
     return np.loadtxt( os.path.join(PATH, 'tbounce.dat') )[0]
-
-
-

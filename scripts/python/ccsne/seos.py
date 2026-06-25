@@ -2,7 +2,7 @@ from singularity_eos import StellarCollapse, Helmholtz
 import numpy as np
 
 
-def calculate_eos_energy_stellarcollapse(rho, T, ye, filename ):
+def calculate_eos_energy_stellarcollapse(rho: np.ndarray, T: np.ndarray, ye: np.ndarray, filename: str ):
     eos = StellarCollapse(filename, use_sp5=False, filter_bmod=True)
     nlambda = eos.nlambda  # get number of elements per lambda
     lmbda = np.zeros(nlambda, dtype=np.double)
@@ -16,7 +16,7 @@ def calculate_eos_energy_stellarcollapse(rho, T, ye, filename ):
 
     return eps, u
 
-def calculate_eos_energy_helmholtz(rho, T, abar, zbar, filename='/home/u1/lawhite/singularity-eos/data/helmholtz/helm_table.dat'):
+def calculate_eos_energy_helmholtz(rho: np.ndarray, T: np.ndarray, abar: np.ndarray, zbar: np.ndarray, filename: str):
     eos = Helmholtz(filename)
     nlambda = eos.nlambda  # get number of elements per lambda
     lmbda = np.zeros(nlambda, dtype=np.double)
@@ -42,5 +42,5 @@ def get_eos_bounds( filename: str, eos_type='stellarcollapse') -> np.ndarray:
         raise LookupError(f'the Helmholtz EOS has no infrastructure to retrieve bounds through python bindings. please find bounds manually.')
 
     else:
-        raise NameError(f'no such EOS found under the type or name {eos_type}.')
+        raise NameError(f'no such EOS found under the type or name `{eos_type}`.')
     

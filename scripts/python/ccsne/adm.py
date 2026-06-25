@@ -29,14 +29,12 @@ class ADMSolver:
         TODO: update method documentation
         TODO: ask brandon + devs about TOV and homologous cases, could reproduce if needed?
         TODO: find references for adm methodology that's being used
-        TODO: does this need to be a class? might make the most sense to remain that way.
-        TODO: clean up ADM iteration algorithm-- is there a cleaner/faster way to do this?
     
     law. 16 jun 2026
 
     '''
 
-    def __init__(self, problem: str, DATPATH: str, EOSPATH: str, eos_type = 'stellarcollapse', use_rho_cut = True, rho_cut = 2.0e3, use_rad_cut = False, rad_cut = 1e9, zones=10000, interp_method = 'cubic', bc_type = 'clamped', num_iterations = 100, converge_criteria = 1.0e-12, extrapolate = True, verbose = True):
+    def __init__(self, problem: str, DATPATH: str, EOSPATH: str, eos_type = 'stellarcollapse', use_rho_cut = True, rho_cut = 2.0e3, use_rad_cut = False, rad_cut = 1e9, use_custom = False, custom_min = 5e5, custom_max = 5e9, zones=10000, interp_method = 'cubic', bc_type = 'clamped', num_iterations = 100, converge_criteria = 1.0e-12, extrapolate = True, verbose = True):
         self.problem    = problem.lower()
         self.DATPATH    = DATPATH
         self.EOSPATH    = EOSPATH
@@ -49,36 +47,34 @@ class ADMSolver:
         self.do_extrap  = extrapolate
         self.verbose    = verbose
 
-        self.get_grid_data( use_rho_cut, rho_cut, use_rad_cut, rad_cut )
+        self.get_grid_data( use_rho_cut, rho_cut, use_rad_cut, rad_cut, use_custom, custom_min, custom_max)
+        if self.verbose: print(f'>>> initializing ADM solver.')
+
 
     def interp( self, y: np.ndarray ):
 
         if self.method == 'linear':
-            if self.do_extrap:
-                return linear(self.r0, y, fill_value = 'extrapolate')
-            else:
-                return linear(self.r0, y)
-
+            return linear(self.r0, y, fill_value = 'extrapolate')
         elif self.method == 'cubic':
-            return cubic(self.r0, y, bc_type=self.bounds, extrapolate=self.do_extrap) # default bc_type is 'not a knot'
+            return cubic(self.r0, y, bc_type=self.bounds, extrapolate=True) # default bc_type is 'not a knot'
         elif self.method == 'akima':
-            return akima(self.r0, y, extrapolate=self.do_extrap)
+            return akima(self.r0, y, extrapolate=True)
         elif self.method == 'makima': # modified akima
-            return akima(self.r0, y, method='makima', extrapolate=self.do_extrap)
+            return akima(self.r0, y, method='makima', extrapolate=True)
 
     def interp_grid( self, y: np.ndarray ):
 
         if self.method == 'linear':
             return linear(self.grid, y, fill_value = 'extrapolate')
         elif self.method == 'cubic':
-            return cubic(self.grid, y, bc_type=self.bounds) # default bc_type is 'not a knot'
+            return cubic(self.grid, y, bc_type=self.bounds, extrapolate=True) # default bc_type is 'not a knot'
         elif self.method == 'akima':
-            return akima(self.grid, y)
+            return akima(self.grid, y, extrapolate=True)
         elif self.method == 'makima': # modified akima
-            return akima(self.grid, y, method='makima')
+            return akima(self.grid, y, method='makima', extrapolate=True)
 
 
-    def get_grid_data( self, use_rho_cut: bool, rho_cut: float, use_rad_cut: bool, rad_cut: float):
+    def get_grid_data( self, use_rho_cut: bool, rho_cut: float, use_rad_cut: bool, rad_cut: float, use_custom: bool, custom_min: float, custom_max: float):
         
         if self.problem == 'stellartable':
             prof = np.loadtxt(self.DATPATH)
@@ -108,9 +104,11 @@ class ADMSolver:
         # all grids are uniform and do NOT go to zero (for now), extrapolation occurs after ADM calculations
         if use_rho_cut:
             irho = np.abs(self.rho0 - rho_cut).argmin() # finding index of nearest density to rho_cut
-            self.grid = np.linspace(1e2, self.r0[irho], self.zones)
+            self.grid = np.linspace(self.r0[0], self.r0[irho], self.zones)
         elif use_rad_cut:
-            self.grid = np.linspace(1e2, rad_cut, self.zones)
+            self.grid = np.linspace(self.r0[0], rad_cut, self.zones)
+        elif use_custom:
+            self.grid = np.linspace(custom_min, custom_max, self.zones)
         
         # finding energy density (consistent with eos) since we don't include that in profiles:
         if self.problem == "stellartable":
@@ -383,7 +381,7 @@ class ADMSolver:
 
             if self.verbose: # TODO: add a more informative print statement here
                 # print(f'{i: 2d} {np.max(abs(alpha)): 4.5e} {np.max(abs(alpha_prev - alpha)): 4.5e}')
-                print( f'\titeration {i:2d}\talpha = {np.max(abs(alpha)): 4.5e}\tdalpha = {np.max(abs(alpha_prev - alpha)): 4.5e}')
+                print( f'\titeration {i:2d}\talpha = {np.max(abs(alpha)):4.5e}\tdalpha = {np.max(abs(alpha_prev - alpha)):4.5e}')
 
             # default criteria is 1e-12, loosening to 6e-12 works as well.
             if np.max(abs(alpha_prev - alpha)) < self.conv_crit:
@@ -400,11 +398,12 @@ class ADMSolver:
     # i.e. reference FLASH/BANG??
     def calculate_all( self ):
 
+        if self.verbose: print(f'>>> iterating to solve for final ADM quantities.')
         rho_adm0, P_adm0, S_adm0, Srr_adm0, a0, K0, alpha0 = self.iterate()
 
         # if we extrapolate to zero...
         if self.do_extrap:
-            # all final output grids will be uniform once extrapolated to zero.
+            if self.verbose: print(f'>>> extrapolating to r = 0.')
             r = np.linspace(0, self.grid[-1], self.zones)
         else:
             r = self.grid
