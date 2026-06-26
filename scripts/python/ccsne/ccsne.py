@@ -10,6 +10,7 @@
 import os
 import shutil
 import argparse
+import time
 
 # our custom helper classes/methods
 from progenitors import get_MESA_profile, get_KEPLER_profile, get_GR1D_profile
@@ -24,10 +25,11 @@ class LoadFile( argparse.Action ):
     def __call__(self, parser, namespace, values, option_string = None):
         with open(values, 'r') as f:
             # parse arguments in the file (one per line), and store them in the target namespace
-            # print( f.read().split())
             parser.parse_args(f.read().split(), namespace)
+            # also add params filename to parser
+            setattr(namespace, self.dest, values)
 
-
+# helper function that adds all parameters from file
 def get_params( parser ) -> None:
 
     # ----- progenitor read in 
@@ -56,6 +58,8 @@ def get_params( parser ) -> None:
     parser.add_argument('--eos-type', type=str, default='stellarcollapse')
 
     # -- grid construction methods
+    parser.add_argument('--def-rad', action = 'store_true', default=False)
+
     parser.add_argument('--use-radcut', action = 'store_true', default=False)
     parser.add_argument('--radcut', type=float, default=1.0e9)
 
@@ -85,6 +89,7 @@ def get_params( parser ) -> None:
     # ----- FOR TESTING ONLY, DEPRECATED METHODS
     parser.add_argument('--depr', action = 'store_true', default=False)
 
+# driver
 def main( ):
     
     parser = argparse.ArgumentParser( prog='ccsne' )
@@ -113,42 +118,45 @@ def main( ):
     
     elif params.model_type.lower() == 'gr1d':
         if params.atbounce:
-            prof_raw = get_GR1D_profile( params.model_path, params.atbounce, verbose=params.verbose)
+            prof_raw, time = get_GR1D_profile( params.model_path, params.atbounce, verbose=params.verbose)
     
         else:
-            prof_raw = get_GR1D_profile( params.model_path, False, params.timestamp, verbose=params.verbose)
+            prof_raw, time = get_GR1D_profile( params.model_path, False, params.timestamp, verbose=params.verbose)
 
+        params.timestamp = time
 
-    # default
-    if not params.depr:
-        # interp from lagrangian to eulerian resolution (higher!)
-        if params.use_drad_interp:
-            prof_raw = interp_to_eulerian( prof_raw, use_drad = True, drad=params.drad_interp )
+    # we leave the resolution and primitives as-is for GR1D models since they're evolved.
+    if params.model_type.lower() != 'gr1d':
+        # default
+        if not params.depr:
+            # interp from lagrangian to eulerian resolution (higher!)
+            if params.use_drad_interp:
+                prof_raw = interp_to_eulerian( prof_raw, use_drad = True, drad=params.drad_interp )
+            else:
+                prof_raw = interp_to_eulerian( prof_raw, factor = params.factor_interp, use_drad=False)
+        
+        # if we're testing against deprecated methods only
         else:
-            prof_raw = interp_to_eulerian( prof_raw, factor = params.factor_interp, use_drad=False)
-    
-    # if we're testing against deprecated methods only
-    else:
-        if param.verbose: print('>>> WARNING: using deprecated methods of subsampling, for testing only!!')
-        rad_depr = prof_raw[:, 0]
-        prof_raw[:, 0], factor = subsample_depr( prof_raw[:, i], rad_depr, params.verbose, get_factor = True)
-        for i in range(1, prof_raw.shape[1]):
-            prof_raw[:, i] = subsample_depr( prof_raw[:, i], rad_depr, factor)
+            if param.verbose: print('>>> WARNING: using deprecated methods of subsampling, for testing only!!')
+            rad_depr = prof_raw[:, 0]
+            prof_raw[:, 0], factor = subsample_depr( prof_raw[:, i], rad_depr, params.verbose, get_factor = True)
+            for i in range(1, prof_raw.shape[1]):
+                prof_raw[:, i] = subsample_depr( prof_raw[:, i], rad_depr, factor)
 
-    # weighted moving average
-    if params.wma_all:
-        prof_raw[:, 1] = wmavg( prof_raw[:, 1], params.wma_n, params.wma_exp)
-        prof_raw[:, 2] = wmavg( prof_raw[:, 2], params.wma_n, params.wma_exp)
-        prof_raw[:, 3] = wmavg( prof_raw[:, 3], params.wma_n, params.wma_exp )
-        prof_raw[:, 4] = wmavg( prof_raw[:, 4], params.wma_n, params.wma_exp)
-        prof_raw[:, 5] = wmavg( prof_raw[:, 5], params.wma_n, params.wma_exp)
-        prof_raw[:, 6] = wmavg( prof_raw[:, 6], params.wma_n, params.wma_exp)
-        prof_raw[:, 7] = wmavg( prof_raw[:, 7], params.wma_n, params.wma_exp)
-        prof_raw[:, 8] = wmavg( prof_raw[:, 8], params.wma_n, params.wma_exp)
-        prof_raw[:, 9] = wmavg( prof_raw[:, 9], params.wma_n, params.wma_exp)
+        # weighted moving average
+        if params.wma_all:
+            prof_raw[:, 1] = wmavg( prof_raw[:, 1], params.wma_n, params.wma_exp)
+            prof_raw[:, 2] = wmavg( prof_raw[:, 2], params.wma_n, params.wma_exp)
+            prof_raw[:, 3] = wmavg( prof_raw[:, 3], params.wma_n, params.wma_exp )
+            prof_raw[:, 4] = wmavg( prof_raw[:, 4], params.wma_n, params.wma_exp)
+            prof_raw[:, 5] = wmavg( prof_raw[:, 5], params.wma_n, params.wma_exp)
+            prof_raw[:, 6] = wmavg( prof_raw[:, 6], params.wma_n, params.wma_exp)
+            prof_raw[:, 7] = wmavg( prof_raw[:, 7], params.wma_n, params.wma_exp)
+            prof_raw[:, 8] = wmavg( prof_raw[:, 8], params.wma_n, params.wma_exp)
+            prof_raw[:, 9] = wmavg( prof_raw[:, 9], params.wma_n, params.wma_exp)
 
-    elif params.wma_vel:
-        prof_raw[:, 1] = wmavg( prof_raw[:, 1], params.wma_n, params.wma_exp)
+        elif params.wma_vel:
+            prof_raw[:, 1] = wmavg( prof_raw[:, 1], params.wma_n, params.wma_exp)
 
     # make sure our save directories exists...
     if not os.path.exists( params.save_path ):
@@ -159,7 +167,7 @@ def main( ):
     raw_prof_name = f'{params.model_name.lower()}_{params.model_type.lower()}.prof'
 
     # initialize ADM solver, solve for new profile
-    adm = ADMSolver( params.adm_problem, os.path.join(params.save_path, raw_prof_name), params.eos_path, params.eos_type, params.use_rhocut, params.rhocut, params.use_radcut, params.radcut, params.use_custom, params.custom_min, params.custom_max, params.zones, params.interp_method, params.bc_type, params.iterations, params.converge_criteria, params.extrapolate, params.verbose)
+    adm = ADMSolver( params.adm_problem, os.path.join(params.save_path, raw_prof_name), params.eos_path, params.eos_type, params.def_rad, params.use_rhocut, params.rhocut, params.use_radcut, params.radcut, params.use_custom, params.custom_min, params.custom_max, params.zones, params.interp_method, params.bc_type, params.iterations, params.converge_criteria, params.extrapolate, params.verbose)
     adm_prof = adm.get_final_profile()
 
     # save phoebus profiles (progenitors.py)
@@ -168,8 +176,12 @@ def main( ):
 
     # saving input file in same output directory for later (optional)
     if params.save_input:
-        shutil.copy( params.file, os.path.join( params.save_path, f'{params.model_name}_{params.model_type.lower()}.in'))
+        shutil.copy( params.file, params.save_path) # move file
+        shutil.move( os.path.join( params.save_path, params.file), os.path.join( params.save_path, f'{params.model_name}_{params.model_type.lower()}.in')) # rename
 
 # ----- run!!
 if __name__ == "__main__":
+    
+    start = time.time()
     main()
+    print('>>> total runtime: %2.4e seconds.' % (time.time() - start))

@@ -111,8 +111,8 @@ def get_GR1D_profile( PATH: str, at_bounce = True, time = -1, verbose = False ) 
         p_data, p_times         = read_time_series( os.path.join(PATH,'press.xg') )
         v_data, v_times         = read_time_series( os.path.join(PATH,'v.xg') )
         v_data, v_times         = read_time_series( os.path.join(PATH,'v.xg') )
-        zbar_data, zbar_times   = read_time_series( os.path.join(PATH,'zbar.xg') )
-        abar_data, abar_times   = read_time_series( os.path.join(PATH,'abar.xg') )
+        zbar_data, zbar_times   = read_time_series( os.path.join(PATH,'xzbar.xg') )
+        abar_data, abar_times   = read_time_series( os.path.join(PATH,'xabar.xg') )
 
     except: 
          raise FileNotFoundError(f'GR1D *.xg, *.dat files not found at {PATH}.')
@@ -154,7 +154,7 @@ def get_GR1D_profile( PATH: str, at_bounce = True, time = -1, verbose = False ) 
                 rho,
                 press,
                 ye,
-                temp / const.k_B.to('MeV').value, # converting back to kelvin
+                temp / const.k_B.to('MeV/K').value, # converting back to kelvin
                 eps,
                 omega,
                 abar,
@@ -264,24 +264,24 @@ def subsample_depr( x, radius_cm, factor=4, verbose=False, get_factor=False, uni
 ### ---------------------------------------------------------------
 ### ------------ handles saving profiles to either adm.py input or phoebus style input (in physical and code units)
 
-def save_raw_profile( profile: np.ndarray, model_name: str, model_type: str, time = 0.0, OUTDIR = '', verbose = True ):
+def save_raw_profile( profile: np.ndarray, model_name: str, model_type: str, time = 0.0, OUTPATH = '', verbose = True ):
     
     # formatting for the header (to align with columns)
     fmt_header = '\t'.join(['%-20s'] * 10)
     tup_header = ( 'radius [cm]', 'velocity [cm/s]', 'density [g/cm^3]', 'pressure [dyne/cm^2]', 'ye', 'temperature [K]', 'sie [erg/g]', 'omega [rad/s]', 'abar', 'zbar')
 
     np.savetxt(
-        os.path.join(OUTDIR, f'{model_name}_{model_type.lower()}.prof'),
+        os.path.join(OUTPATH, f'{model_name}_{model_type.lower()}.prof'),
         profile,
         delimiter   ='\t',
         fmt         = '%20.15e',
         header      = f'initial {model_type.upper()} profile from model `{model_name}` at time {time:.4f} s.\n{fmt_header % tup_header}'
     )
 
-    if verbose: print(f'>>> saved raw profile from {model_type.upper()} model `{model_name}` at time {time:.4f} s to {OUTDIR}.')
+    if verbose: print(f'>>> saved raw profile from {model_type.upper()} model `{model_name}` at time {time:.4f} s to {OUTPATH}.')
 
 
-def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, eos_path: str, eos_type = 'stellarcollapse', time = 0.0, OUTDIR = '', save_unconverted = True, save_summary = True, verbose = True ):
+def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type = 'stellarcollapse', time = 0.0, OUTPATH = '', save_unconverted = True, save_summary = True, verbose = True ):
 
     # formatting for header
     fmt_header = '\t'.join(['%-20s'] * 11)
@@ -291,13 +291,13 @@ def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, eos
     # saves the unconverted profile with primitives + ADM quantities
     if save_unconverted:
         np.savetxt(
-            os.path.join(OUTDIR, f'{model_name}_{model_type.lower()}_adm.prof'),
+            os.path.join(OUTPATH, f'{model_name}_{model_type.lower()}_adm.prof'),
             profile,
             delimiter   ='\t',
             fmt         = '%20.15e',
             header      = f'primitives + ADM for {model_type.upper()} profile from model `{model_name}`at time {time:.4f} s.\n{fmt_header % tup_header}'
         )
-        if verbose: print(f'>>> saved primitive + ADM profile from {model_type.upper()} model `{model_name}` at time {time:.4f} s to {OUTDIR}.')
+        if verbose: print(f'>>> saved primitive + ADM profile from {model_type.upper()} model `{model_name}` at time {time:.4f} s to {OUTPATH}.')
 
 
     # converting the actual profile to phoebus code units
@@ -305,17 +305,17 @@ def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, eos
 
     # creates a summary file with useful conversions and progenitor bounds
     if save_summary:
-        make_summary_file( rhoc, M0, R0, profile_conv, model_name, model_type, eos_path, eos_type, OUTDIR)
+        make_summary_file( rhoc, M0, R0, profile_conv, model_name, model_type, EOSPATH, eos_type, OUTPATH)
 
     # saves the converted profile
     np.savetxt(
-        os.path.join(OUTDIR, f'{model_name}_{model_type.lower()}_adm_converted.prof'),
+        os.path.join(OUTPATH, f'{model_name}_{model_type.lower()}_adm_converted.prof'),
         profile_conv,
         delimiter   ='\t',
         fmt         = '%20.15e',
         header      = f'converted primitives + ADM for {model_type.upper()} profile from model `{model_name}` at time {time:.4f} s.\n{fmt_header % tup_header_conv}'
     )
-    if verbose: print(f'>>> saved converted primitive + ADM profile from {model_type.upper()} model `{model_name}` at time {time:.4f} s to {OUTDIR}.')
+    if verbose: print(f'>>> saved converted primitive + ADM profile from {model_type.upper()} model `{model_name}` at time {time:.4f} s to {OUTPATH}.')
 
 
 ### ---------------------------------------------------------------

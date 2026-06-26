@@ -47,11 +47,11 @@ def convert_PHB_profile( prof: np.ndarray ) -> np.ndarray:
     return prof_conv, rhoc, M0, R0
 
 
-def make_summary_file( rhoc: float, M0: float, R0: float, prof_conv: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type = "stellarcollapse", OUTDIR = '') -> None:
+def make_summary_file( rhoc: float, M0: float, R0: float, prof_conv: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type = "stellarcollapse", OUTPATH = '') -> None:
     
     try:
-        fout = open(os.path.join(OUTDIR, f'{model_name}_{model_type.lower()}.dat'), 'w')
-        fmt   = '%20s  %-18.13e\n'
+        fout = open(os.path.join(OUTPATH, f'{model_name}_{model_type.lower()}.dat'), 'w')
+        fmt   = '%22s  %-18.13e\n'
 
         fout.write(f'# -----summary and conversions from {model_type.upper()} progenitor `{model_name}.`')
         fout.write('\n\n')
