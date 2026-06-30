@@ -50,31 +50,31 @@ def convert_PHB_profile( prof: np.ndarray ) -> np.ndarray:
 def make_summary_file( rhoc: float, M0: float, R0: float, prof_conv: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type = "stellarcollapse", OUTPATH = '') -> None:
     
     try:
-        fout = open(os.path.join(OUTPATH, f'{model_name}_{model_type.lower()}.dat'), 'w')
-        fmt   = '%22s  %-18.13e\n'
+        fout = open(os.path.join(OUTPATH, f'{model_name}_{model_type.lower()}.info'), 'w')
+        fmt   = '%18.13e    %-25s\n'
 
         fout.write(f'# -----summary and conversions from {model_type.upper()} progenitor `{model_name}.`')
         fout.write('\n\n')
 
         # --- characteristic quantities, length scales
         fout.write('# -----characteristic values [cgs]\n')
-        fout.write( fmt % ('central density', rhoc ))
-        fout.write( fmt % ('characteristic mass', M0 ))
-        fout.write( fmt % ('characteristic radius', R0 ) )
+        fout.write( fmt % (rhoc, 'central density') )
+        fout.write( fmt % (M0, 'characteristic mass') )
+        fout.write( fmt % (R0, 'characteristic radius') )
         fout.write('\n')
         fout.write('# -----length scales [phb]\n')
-        fout.write( fmt % ('radius, 500 km', 500e5/R0))
-        fout.write( fmt % ('radius, 1e4 km', 1e9/R0))
+        fout.write( fmt % (500e5/R0, 'radius, 500 km') )
+        fout.write( fmt % (1e9/R0, 'radius, 1e4 km') )
         fout.write('\n')
 
         # --- model bounds
         fout.write('# -----bounds, progenitor [phb]\n')
-        fout.write( fmt % ('minimum density', np.min(prof_conv[:, 1] )) )
-        fout.write( fmt % ('maximum density', np.max(prof_conv[:, 1] )) )
-        fout.write( fmt % ('minimum temperature', np.min(prof_conv[:, 2] )) )
-        fout.write( fmt % ('maximum temperature', np.max(prof_conv[:, 2] )) )
-        fout.write( fmt % ('minimum sie', np.min(prof_conv[:, 4] )) )
-        fout.write( fmt % ('maximum sie', np.max(prof_conv[:, 4] )) )
+        fout.write( fmt % (np.min(prof_conv[:, 1]), 'minimum density') )
+        fout.write( fmt % (np.max(prof_conv[:, 1]), 'maximum density') )
+        fout.write( fmt % (np.min(prof_conv[:, 2]), 'minimum temperature') )
+        fout.write( fmt % (np.max(prof_conv[:, 2]), 'maximum temperature') )
+        fout.write( fmt % (np.min(prof_conv[:, 4]), 'minimum sie') )
+        fout.write( fmt % (np.max(prof_conv[:, 4]), 'maximum sie') )
         fout.write('\n')
 
 
@@ -82,24 +82,24 @@ def make_summary_file( rhoc: float, M0: float, R0: float, prof_conv: np.ndarray,
         bounds = get_eos_bounds( EOSPATH, eos_type )
 
         fout.write('# -----bounds, progenitor [phb]\n')
-        fout.write( fmt % ('minimum density', bounds[0]) )
-        fout.write( fmt % ('maximum density', bounds[1]) )
-        fout.write( fmt % ('minimum temperature', bounds[2]) )
-        fout.write( fmt % ('maximum temperature', bounds[3]) )
-        fout.write( fmt % ('minimum sie', bounds[4]) )
-        fout.write( fmt % ('maximum sie', bounds[5]) )
-        fout.write( fmt % ('minimum ye', bounds[6]) )
-        fout.write( fmt % ('maximum ye', bounds[7]) )
+        fout.write( fmt % (bounds[0], 'minimum density') )
+        fout.write( fmt % (bounds[1], 'maximum density') )
+        fout.write( fmt % (bounds[2], 'minimum temperature') )
+        fout.write( fmt % (bounds[3], 'maximum temperature') )
+        fout.write( fmt % (bounds[4], 'minimum sie') )
+        fout.write( fmt % (bounds[5], 'maximum sie') )
+        fout.write( fmt % (bounds[6], 'minimum ye') )
+        fout.write( fmt % (bounds[7], 'maximum ye') )
         fout.write('\n')
 
         # --- conversion factors
         fout.write('# -----conversion factors, multiply to get back to cgs [phb -> cgs]\n')
-        fout.write( fmt % ('radius', 1/R0 ))
-        fout.write( fmt % ('density', 1/((c ** 2.0) / G / M0)))
-        fout.write( fmt % ('temperature', 1/kB ))
-        fout.write( fmt % ('sie', c**2.0))
-        fout.write( fmt % ('velocity', c ))
-        fout.write( fmt % ('pressure', 1 / (G ** 3.0 / c ** 8.0 * M0 ** 2.0) ))
+        fout.write( fmt % (1/R0, 'radius') )
+        fout.write( fmt % (1/((c ** 2.0) / G / M0), 'density') )
+        fout.write( fmt % (1/kB, 'temperature') )
+        fout.write( fmt % (c**2.0, 'sie') )
+        fout.write( fmt % (c, 'velocity') )
+        fout.write( fmt % (1 / (G ** 3.0 / c ** 8.0 * M0 ** 2.0), 'pressure') )
         fout.write('\n')
 
         fout.close()

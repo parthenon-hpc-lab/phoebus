@@ -34,7 +34,7 @@ class ADMSolver:
 
     '''
 
-    def __init__(self, problem: str, DATPATH: str, EOSPATH: str, eos_type = 'stellarcollapse', def_rad = False, use_rho_cut = False, rho_cut = 2.0e3, use_rad_cut = False, rad_cut = 1e9, use_custom = False, custom_min = 5e5, custom_max = 5e9, zones=10000, interp_method = 'cubic', bc_type = 'clamped', num_iterations = 100, converge_criteria = 1.0e-12, extrapolate = True, verbose = True):
+    def __init__(self, problem: str, DATPATH: str, EOSPATH: str, eos_type = 'stellarcollapse', use_def_rad = False, use_rho_cut = False, rho_cut = 2.0e3, use_rad_cut = False, rad_cut = 1e9, use_custom = False, custom_min = 5e5, custom_max = 5e9, zones=10000, interp_method = 'cubic', bc_type = 'clamped', num_iterations = 100, converge_criteria = 1.0e-12, extrapolate = True, verbose = True):
         self.problem    = problem.lower()
         self.DATPATH    = DATPATH
         self.EOSPATH    = EOSPATH
@@ -43,11 +43,12 @@ class ADMSolver:
         self.method     = interp_method.lower()
         self.bounds     = bc_type.lower()
         self.zones      = zones
+        self.zones0     = zones
         self.conv_crit  = converge_criteria
         self.do_extrap  = extrapolate
         self.verbose    = verbose
 
-        self.get_grid_data( def_rad, use_rho_cut, rho_cut, use_rad_cut, rad_cut, use_custom, custom_min, custom_max)
+        self.get_grid_data( use_def_rad, use_rho_cut, rho_cut, use_rad_cut, rad_cut, use_custom, custom_min, custom_max)
         if self.verbose: print(f'>>> initializing ADM solver.')
 
 
@@ -74,7 +75,7 @@ class ADMSolver:
             return akima(self.grid, y, method='makima', extrapolate=True)
 
 
-    def get_grid_data( self, def_rad: bool, use_rho_cut: bool, rho_cut: float, use_rad_cut: bool, rad_cut: float, use_custom: bool, custom_min: float, custom_max: float):
+    def get_grid_data( self, use_def_rad: bool, use_rho_cut: bool, rho_cut: float, use_rad_cut: bool, rad_cut: float, use_custom: bool, custom_min: float, custom_max: float):
         
         if self.problem == 'stellartable':
             prof = np.loadtxt(self.DATPATH)
@@ -109,8 +110,9 @@ class ADMSolver:
             self.grid = np.linspace(self.r0[0], rad_cut, self.zones)
         elif use_custom:
             self.grid = np.linspace(custom_min, custom_max, self.zones)
-        elif def_rad:
+        elif use_def_rad:
             self.grid = self.r0
+            self.zones = self.r0.shape[0] 
         
         # finding energy density (consistent with eos) since we don't include that in profiles:
         if self.problem == "stellartable":
@@ -153,7 +155,6 @@ class ADMSolver:
 
             phi[i] = np.trapezoid(I, x=self.r0)
                 
-        print(phi.shape, self.grid.shape)
         dphi = np.gradient(phi, self.grid)
         alpha2 = 1.0 + 2.0 * phi / c ** 2.0
         a2 = 1.0 + 2.0 * self.grid * dphi / c ** 2.0
@@ -407,7 +408,7 @@ class ADMSolver:
         # if we extrapolate to zero...
         if self.do_extrap:
             if self.verbose: print(f'>>> extrapolating to r = 0.')
-            r = np.linspace(0, self.grid[-1], self.zones)
+            r = np.linspace(0, self.grid[-1], self.zones0)
         else:
             r = self.grid
 

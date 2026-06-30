@@ -111,6 +111,7 @@ def get_GR1D_profile( PATH: str, at_bounce = True, time = -1, verbose = False ) 
         p_data, p_times         = read_time_series( os.path.join(PATH,'press.xg') )
         v_data, v_times         = read_time_series( os.path.join(PATH,'v.xg') )
         v_data, v_times         = read_time_series( os.path.join(PATH,'v.xg') )
+        # TODO: i think the conversion of abar, zbar is incorrect here... fix later
         zbar_data, zbar_times   = read_time_series( os.path.join(PATH,'xzbar.xg') )
         abar_data, abar_times   = read_time_series( os.path.join(PATH,'xabar.xg') )
 

@@ -21,8 +21,8 @@ parameter           example                             description + defaults +
 --wma-n             50                                  (optional) window for weighted mean average, default: 100
 --wma-exp           3                                   (optional) exponent to raise wma weights to, default: 3
 
---factor-interp     10                                  (optional) factor to increase profile radial grid resolution by, default: 4
---use-drad-interp                                       (optional, bool) enables radial spacing critera for interpolation instead of factor
+--factor-interp     10                                  (optional) factor to increase profile radial grid resolution by, default: 4 
+--use-drad-interp                                       (optional, bool) enables radial spacing critera for interpolation instead of factor, recommended over factor for lagrangian input models
 --drad-interp       1e7                                 (optional) if using radial spacing for interpolation, sets minimum spacing requirement in cm, default: 1e7
 
 --adm-problem       StellarTable                        (optional) type of ADM interpolation to use, default: StellarCollapse (options: StellarCollapse, tov, homologous)                       
@@ -39,13 +39,15 @@ parameter           example                             description + defaults +
 --custom-min        1e2                                 (optional) inner radial limit for custom grid in cm, default: 5e5
 --custom-max        4.5e9                               (optional) outer radial limit for custom grid in cm, default: 5e9
 
---zones             1000                                (optional) desired number of grid zones for new profile, default: 10000
+--use-def-rad                                           (optional, bool) uses the default input radial grid of the progenitor (best used for GR1D models at or after bounce).
+
+--zones             1000                                (optional) desired number of grid zones for new profile, default: 1500
 --interp-method     linear                              (optional) method of interpolation for ADM solver, default: cubic (options: linear, cubic, akima, makima)
 --bc-type           clamped                             (optional) boundary conditions if using cubic interpolation, default: clamped (options: clamped, not-a-knot, periodic)
 
 --iterations        100                                 (optional) number of iterations the ADM solver will try when converging, default: 100
 --converge-criteria 1.0e-12                             (optional) 
---extrapolate                                           (optional, bool) extrapolate the output grid to r = 0
+--extrapolate                                           (optional, bool) extrapolate the output grid to r = 0. 
 
 --save-path         test-profiles                       absolute or relative path to desired directory to save all output
 --save-summary                                          (optional, bool) saves summary file for cgs -> phb unit conversions and input

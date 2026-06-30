@@ -58,7 +58,7 @@ def get_params( parser ) -> None:
     parser.add_argument('--eos-type', type=str, default='stellarcollapse')
 
     # -- grid construction methods
-    parser.add_argument('--def-rad', action = 'store_true', default=False)
+    parser.add_argument('--use-def-rad', action = 'store_true', default=False)
 
     parser.add_argument('--use-radcut', action = 'store_true', default=False)
     parser.add_argument('--radcut', type=float, default=1.0e9)
@@ -71,7 +71,7 @@ def get_params( parser ) -> None:
     parser.add_argument('--custom-max', type=float, default=5e9)
 
     # -- grid and interpolation settings
-    parser.add_argument('--zones', type=int, default=10000)
+    parser.add_argument('--zones', type=int, default=1500)
     parser.add_argument('--interp-method', type=str, default='cubic')
     parser.add_argument('--bc-type', type=str, default='clamped')
 
@@ -167,7 +167,7 @@ def main( ):
     raw_prof_name = f'{params.model_name.lower()}_{params.model_type.lower()}.prof'
 
     # initialize ADM solver, solve for new profile
-    adm = ADMSolver( params.adm_problem, os.path.join(params.save_path, raw_prof_name), params.eos_path, params.eos_type, params.def_rad, params.use_rhocut, params.rhocut, params.use_radcut, params.radcut, params.use_custom, params.custom_min, params.custom_max, params.zones, params.interp_method, params.bc_type, params.iterations, params.converge_criteria, params.extrapolate, params.verbose)
+    adm = ADMSolver( params.adm_problem, os.path.join(params.save_path, raw_prof_name), params.eos_path, params.eos_type, params.use_def_rad, params.use_rhocut, params.rhocut, params.use_radcut, params.radcut, params.use_custom, params.custom_min, params.custom_max, params.zones, params.interp_method, params.bc_type, params.iterations, params.converge_criteria, params.extrapolate, params.verbose)
     adm_prof = adm.get_final_profile()
 
     # save phoebus profiles (progenitors.py)
