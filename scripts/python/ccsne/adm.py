@@ -34,7 +34,7 @@ class ADMSolver:
 
     '''
 
-    def __init__(self, problem: str, DATPATH: str, EOSPATH: str, eos_type = 'stellarcollapse', use_def_rad = False, use_rho_cut = False, rho_cut = 2.0e3, use_rad_cut = False, rad_cut = 1e9, use_custom = False, custom_min = 5e5, custom_max = 5e9, zones=10000, interp_method = 'cubic', bc_type = 'clamped', num_iterations = 100, converge_criteria = 1.0e-12, extrapolate = True, verbose = True):
+    def __init__(self, problem: str, DATPATH: str, EOSPATH: str, eos_type = 'stellarcollapse', use_def_rad = False, use_rho_cut = False, rho_cut = 2.0e3, use_rad_cut = False, rad_cut = 1e9, use_custom = False, custom_min = 5e5, custom_max = 5e9, zones=10000, interp_method = 'cubic', bc_type = 'clamped', num_iterations = 100, dalpha_eps = 1.0e-12, extrapolate = True, verbose = True):
         self.problem    = problem.lower()
         self.DATPATH    = DATPATH
         self.EOSPATH    = EOSPATH
@@ -44,7 +44,7 @@ class ADMSolver:
         self.bounds     = bc_type.lower()
         self.zones      = zones
         self.zones0     = zones
-        self.conv_crit  = converge_criteria
+        self.dalpha_eps  = dalpha_eps
         self.do_extrap  = extrapolate
         self.verbose    = verbose
 
@@ -388,7 +388,7 @@ class ADMSolver:
                 print( f'\titeration {i:2d}\talpha = {np.max(abs(alpha)):4.5e}\tdalpha = {np.max(abs(alpha_prev - alpha)):4.5e}')
 
             # default criteria is 1e-12, loosening to 6e-12 works as well.
-            if np.max(abs(alpha_prev - alpha)) < self.conv_crit:
+            if np.max(abs(alpha_prev - alpha)) < self.dalpha_eps:
                 break
 
             if i == (self.n - 1):

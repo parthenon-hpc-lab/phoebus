@@ -17,6 +17,9 @@ from progenitors import get_MESA_profile, get_KEPLER_profile, get_GR1D_profile
 from progenitors import wmavg, interp_to_eulerian
 from progenitors import save_raw_profile, save_ADM_profile
 
+# deprecated, for testing only
+from progenitors import subsample_depr
+
 from adm import ADMSolver
 from convert import *
 
@@ -32,8 +35,7 @@ class LoadFile( argparse.Action ):
 # helper function that adds all parameters from file
 def get_params( parser ) -> None:
 
-    # ----- progenitor read in 
-    # path, model name, type, header (optional), at bounce (optional, gr1d), time (if not at bounce)
+    # ----- progenitor i/o
     parser.add_argument('--model-path', type=str)
     parser.add_argument('--model-name', type=str)
     parser.add_argument('--model-type', type=str)
@@ -42,14 +44,13 @@ def get_params( parser ) -> None:
     parser.add_argument('--timestamp', type=float, default=0.0)
 
     # ----- progenitor processing
-    # wma options, interp factor, use_drad + drad (optional)
     parser.add_argument('--wma-all', action = 'store_true', default=False)
     parser.add_argument('--wma-vel', action = 'store_true', default=False)
     parser.add_argument('--wma-n', type=int, default=100)
     parser.add_argument('--wma-exp', type=int, default=3)
-    parser.add_argument('--factor-interp', type=int, default=4)
+    parser.add_argument('--factor-interp', type=int, default=10)
     parser.add_argument('--use-drad-interp', action = 'store_true', default=False)
-    parser.add_argument('--drad-interp', type=float, default=1e7)
+    parser.add_argument('--drad-interp', type=float, default=1e8)
 
     # ----- adm solver options
     # -- path (post progenitor), eos path, eos type
@@ -71,18 +72,18 @@ def get_params( parser ) -> None:
     parser.add_argument('--custom-max', type=float, default=5e9)
 
     # -- grid and interpolation settings
-    parser.add_argument('--zones', type=int, default=1500)
+    parser.add_argument('--zones', type=int, default=2048)
     parser.add_argument('--interp-method', type=str, default='cubic')
-    parser.add_argument('--bc-type', type=str, default='clamped')
+    parser.add_argument('--bc-type', type=str, default='not-a-knot')
 
     # -- adm solver settings
     parser.add_argument('--iterations', type=int, default=100)
-    parser.add_argument('--converge-criteria', type=float, default=1.0e-12)
+    parser.add_argument('--dalpha-eps', type=float, default=1.0e-12)
     parser.add_argument('--extrapolate', action = 'store_true', default=False)
 
     # ----- saving files
     parser.add_argument('--save-path', type=str, default='')
-    parser.add_argument('--save-summary', action = 'store_true', default=False)
+    parser.add_argument('--save-info', action = 'store_true', default=False)
     parser.add_argument('--save-unconverted', action = 'store_true', default=False)
     parser.add_argument('--save-input', action = 'store_true', default=False)
 
@@ -137,11 +138,16 @@ def main( ):
         
         # if we're testing against deprecated methods only
         else:
-            if param.verbose: print('>>> WARNING: using deprecated methods of subsampling, for testing only!!')
+            if params.verbose: print('>>> WARNING: using deprecated methods of subsampling, for testing only!!')
             rad_depr = prof_raw[:, 0]
-            prof_raw[:, 0], factor = subsample_depr( prof_raw[:, i], rad_depr, params.verbose, get_factor = True)
+            rad_new, factor = subsample_depr( prof_raw[:, 0], rad_depr, verbose=params.verbose, get_factor = True)
+            prof_new = np.zeros((rad_new.size, 10))
+            prof_new[:, 0] = rad_new
+
             for i in range(1, prof_raw.shape[1]):
-                prof_raw[:, i] = subsample_depr( prof_raw[:, i], rad_depr, factor)
+                prof_new[:, i] = subsample_depr( prof_raw[:, i], rad_depr, factor)
+
+            prof_raw = prof_new
 
         # weighted moving average
         if params.wma_all:
@@ -167,12 +173,12 @@ def main( ):
     raw_prof_name = f'{params.model_name.lower()}_{params.model_type.lower()}.prof'
 
     # initialize ADM solver, solve for new profile
-    adm = ADMSolver( params.adm_problem, os.path.join(params.save_path, raw_prof_name), params.eos_path, params.eos_type, params.use_def_rad, params.use_rhocut, params.rhocut, params.use_radcut, params.radcut, params.use_custom, params.custom_min, params.custom_max, params.zones, params.interp_method, params.bc_type, params.iterations, params.converge_criteria, params.extrapolate, params.verbose)
+    adm = ADMSolver( params.adm_problem, os.path.join(params.save_path, raw_prof_name), params.eos_path, params.eos_type, params.use_def_rad, params.use_rhocut, params.rhocut, params.use_radcut, params.radcut, params.use_custom, params.custom_min, params.custom_max, params.zones, params.interp_method, params.bc_type, params.iterations, params.dalpha_eps, params.extrapolate, params.verbose)
     adm_prof = adm.get_final_profile()
 
     # save phoebus profiles (progenitors.py)
     # optional: make summary file
-    save_ADM_profile( adm_prof, params.model_name, params.model_type, params.eos_path, params.eos_type, params.timestamp, params.save_path, params.save_unconverted, params.save_summary, params.verbose)
+    save_ADM_profile( adm_prof, params.model_name, params.model_type, params.eos_path, params.eos_type, params.timestamp, params.save_path, params.save_unconverted, params.save_info, params.verbose)
 
     # saving input file in same output directory for later (optional)
     if params.save_input:

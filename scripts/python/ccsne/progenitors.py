@@ -11,8 +11,6 @@
     >>> outstanding tasks
 
         TODO: add documentation to all helper functions
-        TODO: do we add the processing functions (subsample, weighted moving avg) here?
-        TODO: testing! maybe unit tests too
         
     law. 16 jun 2026
 '''
@@ -26,7 +24,7 @@ import os
 from scipy.interpolate import CubicSpline as cubic
 
 
-from convert import convert_PHB_profile, make_summary_file
+from convert import convert_PHB_profile, make_info_file
 
 
 def get_MESA_profile( PATH: str, header=4, verbose=False ) -> np.ndarray:
@@ -38,7 +36,7 @@ def get_MESA_profile( PATH: str, header=4, verbose=False ) -> np.ndarray:
          raise FileNotFoundError(f'MESA profile not found at {PATH}.')
 
     # reversing the profile so that our inner radial coord is at 0.
-    prof = prof.iloc[::-1].reset_index(drop=True)
+    prof = prof[::-1].reset_index(drop=True)
 
     # quick check to see if our model was rotating or not:
     try: 
@@ -227,7 +225,7 @@ def subsample_depr( x, radius_cm, factor=4, verbose=False, get_factor=False, uni
     nzones = x.size # number of zones within the mesa raw data
 
     if uniform: 
-        total_radius = radius_cm.iloc[-1] - radius_cm.iloc[0] # total radial domain of the mesa profile
+        total_radius = radius_cm[-1] - radius_cm[0] # total radial domain of the mesa profile
         dr = total_radius / (nzones * factor) # << new uniform radiial spacing
         
         if get_factor: 
@@ -239,15 +237,15 @@ def subsample_depr( x, radius_cm, factor=4, verbose=False, get_factor=False, uni
             print(f'new radial spacing:\t{dr:1.4e}')
             print(f'zone factor:\t{factor}')
 
-        new_grid = np.linspace(radius_cm.iloc[0], radius_cm.iloc[-1], nzones * factor)
+        new_grid = np.linspace(radius_cm[0], radius_cm[-1], nzones * factor)
     
     else:
-        unif_radius = 5e9 - radius_cm.iloc[0] 
+        unif_radius = 5e9 - radius_cm[0] 
         unif_nzones = int(unif_radius / 2e7) # ensuring high resolution within the core to capture < 5e9 cm
         log_nzones = int(nzones * 0.70 * factor) # assuming 70% of the zones don't capture the core, multiplying by the general factor
         
-        unif_grid = np.linspace(radius_cm.iloc[0], 5e9, unif_nzones)
-        log_grid = np.logspace( np.log10(5e9), np.log10(radius_cm.iloc[-1]), log_nzones)
+        unif_grid = np.linspace(radius_cm[0], 5e9, unif_nzones)
+        log_grid = np.logspace( np.log10(5e9), np.log10(radius_cm[-1]), log_nzones)
         new_grid = np.concatenate((unif_grid, log_grid[1:]), axis=0)
 
         if verbose:
@@ -282,7 +280,7 @@ def save_raw_profile( profile: np.ndarray, model_name: str, model_type: str, tim
     if verbose: print(f'>>> saved raw profile from {model_type.upper()} model `{model_name}` at time {time:.4f} s to {OUTPATH}.')
 
 
-def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type = 'stellarcollapse', time = 0.0, OUTPATH = '', save_unconverted = True, save_summary = True, verbose = True ):
+def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type = 'stellarcollapse', time = 0.0, OUTPATH = '', save_unconverted = True, save_info = True, verbose = True ):
 
     # formatting for header
     fmt_header = '\t'.join(['%-20s'] * 11)
@@ -304,9 +302,9 @@ def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, EOS
     # converting the actual profile to phoebus code units
     profile_conv, rhoc, M0, R0 = convert_PHB_profile( profile )
 
-    # creates a summary file with useful conversions and progenitor bounds
-    if save_summary:
-        make_summary_file( rhoc, M0, R0, profile_conv, model_name, model_type, EOSPATH, eos_type, OUTPATH)
+    # creates a summary/info file with useful conversions and progenitor bounds
+    if save_info:
+        make_info_file( rhoc, M0, R0, profile_conv, model_name, model_type, EOSPATH, eos_type, OUTPATH)
 
     # saves the converted profile
     np.savetxt(
