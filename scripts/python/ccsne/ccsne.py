@@ -75,6 +75,7 @@ def get_params( parser ) -> None:
     parser.add_argument('--zones', type=int, default=2048)
     parser.add_argument('--interp-method', type=str, default='cubic')
     parser.add_argument('--bc-type', type=str, default='not-a-knot')
+    parser.add_argument('--interp-method-adm', type=str, default='piecewise')
 
     # -- adm solver settings
     parser.add_argument('--iterations', type=int, default=100)
@@ -86,6 +87,7 @@ def get_params( parser ) -> None:
     parser.add_argument('--save-info', action = 'store_true', default=False)
     parser.add_argument('--save-unconverted', action = 'store_true', default=False)
     parser.add_argument('--save-input', action = 'store_true', default=False)
+    parser.add_argument('--save-raw', action = 'store_true', default=False)
 
     # ----- FOR TESTING ONLY, DEPRECATED METHODS
     parser.add_argument('--depr', action = 'store_true', default=False)
@@ -173,14 +175,19 @@ def main( ):
     raw_prof_name = f'{params.model_name.lower()}_{params.model_type.lower()}.prof'
 
     # initialize ADM solver, solve for new profile
-    adm = ADMSolver( params.adm_problem, os.path.join(params.save_path, raw_prof_name), params.eos_path, params.eos_type, params.use_def_rad, params.use_rhocut, params.rhocut, params.use_radcut, params.radcut, params.use_custom, params.custom_min, params.custom_max, params.zones, params.interp_method, params.bc_type, params.iterations, params.dalpha_eps, params.extrapolate, params.verbose)
+    adm = ADMSolver( params.adm_problem, os.path.join(params.save_path, raw_prof_name), params.eos_path, params.eos_type, params.use_def_rad, params.use_rhocut, params.rhocut, params.use_radcut, params.radcut, params.use_custom, params.custom_min, params.custom_max, params.zones, params.interp_method, params.bc_type, params.interp_method_adm, params.iterations, params.dalpha_eps, params.extrapolate, params.verbose)
     adm_prof = adm.get_final_profile()
 
     # save phoebus profiles (progenitors.py)
+
+    # optional: if we choose not to save the raw profile, delete here.
+    if not params.save_raw:
+        os.remove( os.path.join( params.save_path, raw_prof_name) )
+
     # optional: make summary file
     save_ADM_profile( adm_prof, params.model_name, params.model_type, params.eos_path, params.eos_type, params.timestamp, params.save_path, params.save_unconverted, params.save_info, params.verbose)
 
-    # saving input file in same output directory for later (optional)
+    # optional: saving input file in same output directory for later (optional)
     if params.save_input:
         shutil.copy( params.file, params.save_path) # move file
         shutil.move( os.path.join( params.save_path, params.file), os.path.join( params.save_path, f'{params.model_name}_{params.model_type.lower()}.in')) # rename

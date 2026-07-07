@@ -42,8 +42,9 @@ parameter           default (example, if required)      description + defaults +
 --use-def-rad                                           (optional, bool) uses the default input radial grid of the progenitor (best used for GR1D models at or after bounce).
 
 --zones             2048                                (optional) desired number of grid zones for new profile. recommended to be 2^x zones for phoebus AMR.
---interp-method     cubic                               (optional) method of interpolation for ADM solver (options: linear, cubic, akima, makima)
+--interp-method     cubic                               (optional) method of interpolation for ADM solver, non-ADM primitives (options: linear, cubic, akima, makima)
 --bc-type           not-a-knot                          (optional) boundary conditions if using cubic interpolation (options: clamped, not-a-knot, periodic)
+--interp-method-adm piecewise                           (optional) method of interpolation for ADM solver, ADM quantities (options: linear, piecewise)
 
 --iterations        100                                 (optional) number of iterations the ADM solver will try when converging
 --dalpha-eps        1.0e-12                             (optional) TODO:: docs????
@@ -53,5 +54,6 @@ parameter           default (example, if required)      description + defaults +
 --save-info                                             (optional, bool) saves info file for cgs -> phb unit conversions and input
 --save-unconverted                                      (optional, bool) saves output for phoebus before conversion to phb units
 --save-input                                            (optional, bool) saves input parameter file for future use
+--save-raw                                              (optional, bool) saves the processed, pre ADM solver progenitor
 
 --depr                                                  (optional, bool) FOR TESTING ONLY, uses original grsolver pipeline

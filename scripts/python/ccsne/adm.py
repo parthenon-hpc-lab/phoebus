@@ -28,23 +28,23 @@ class ADMSolver:
         TODO: update class documentation
         TODO: update method documentation
         TODO: ask brandon + devs about TOV and homologous cases, could reproduce if needed?
-        TODO: find references for adm methodology that's being used
     
     law. 16 jun 2026
 
     '''
 
-    def __init__(self, problem: str, DATPATH: str, EOSPATH: str, eos_type = 'stellarcollapse', use_def_rad = False, use_rho_cut = False, rho_cut = 2.0e3, use_rad_cut = False, rad_cut = 1e9, use_custom = False, custom_min = 5e5, custom_max = 5e9, zones=10000, interp_method = 'cubic', bc_type = 'clamped', num_iterations = 100, dalpha_eps = 1.0e-12, extrapolate = True, verbose = True):
+    def __init__(self, problem: str, DATPATH: str, EOSPATH: str, eos_type = 'stellarcollapse', use_def_rad = False, use_rho_cut = False, rho_cut = 2.0e3, use_rad_cut = False, rad_cut = 1e9, use_custom = False, custom_min = 5e5, custom_max = 5e9, zones=10000, interp_method = 'cubic', bc_type = 'clamped', interp_method_adm = 'piecewise', num_iterations = 100, dalpha_eps = 1.0e-12, extrapolate = True, verbose = True):
         self.problem    = problem.lower()
         self.DATPATH    = DATPATH
         self.EOSPATH    = EOSPATH
         self.eos_type   = eos_type.lower()
         self.n          = num_iterations
         self.method     = interp_method.lower()
+        self.method_adm = interp_method_adm.lower()
         self.bounds     = bc_type.lower()
         self.zones      = zones
         self.zones0     = zones
-        self.dalpha_eps  = dalpha_eps
+        self.dalpha_eps = dalpha_eps
         self.do_extrap  = extrapolate
         self.verbose    = verbose
 
@@ -63,16 +63,16 @@ class ADMSolver:
         elif self.method == 'makima': # modified akima
             return akima(self.r0, y, method='makima', extrapolate=True)
 
-    def interp_grid( self, y: np.ndarray ):
-
-        if self.method == 'linear':
+    def interp_adm( self, y: np.ndarray ):
+        
+        # TODO: consider implementing the same piecewise polynomial method jonah uses in monopole_gr_base.hpp 
+        # TODO: probably best if we only have options for basic linear interp and above method. cubic et al. do NOT work well in the core.
+        
+        if self.method_adm == 'linear': # todo: change this to an additional flag, not the same as above method
             return linear(self.grid, y, fill_value = 'extrapolate')
-        elif self.method == 'cubic':
-            return cubic(self.grid, y, bc_type=self.bounds, extrapolate=True) # default bc_type is 'not a knot'
-        elif self.method == 'akima':
-            return akima(self.grid, y, extrapolate=True)
-        elif self.method == 'makima': # modified akima
-            return akima(self.grid, y, method='makima', extrapolate=True)
+
+        elif self.method_adm == 'piecewise':
+            return piecewise(self.grid, y)
 
 
     def get_grid_data( self, use_def_rad: bool, use_rho_cut: bool, rho_cut: float, use_rad_cut: bool, rad_cut: float, use_custom: bool, custom_min: float, custom_max: float):
@@ -136,9 +136,8 @@ class ADMSolver:
 
 
     def calculate_newtonian_metric( self ):
-        # TODO: still need to find a reference for this...
-        # if self.verbose: print('----- calculating metric in newtonian limit.')
 
+        # phi is the spherically symm. gravitational potential (for monopole assumption)
         phi = np.zeros(self.zones)
         dphi = np.zeros(self.zones)
 
@@ -156,6 +155,8 @@ class ADMSolver:
             phi[i] = np.trapezoid(I, x=self.r0)
                 
         dphi = np.gradient(phi, self.grid)
+
+        # we find alpha^2, a^2 using the metric in the sph. symm., weak field (newtonian) limit and the metric in eq. 15 of Barker et al. 2024
         alpha2 = 1.0 + 2.0 * phi / c ** 2.0
         a2 = 1.0 + 2.0 * self.grid * dphi / c ** 2.0
 
@@ -163,9 +164,6 @@ class ADMSolver:
 
 
     def calculate_initial_ADM( self ):
-        # if self.verbose: print('----- calculating initial ADM quantities.')
-        
-        # TODO: also find a reference for this method, and iteration...
 
         # 3-metric??
         gamma2 = 1.0 / (
@@ -190,8 +188,8 @@ class ADMSolver:
         ) * self.p_int(self.grid)
 
         # interpolation for our lapse function
-        self.alpha2_int = self.interp_grid( alpha2 )
-        self.a2_int = self.interp_grid( a2 )
+        self.alpha2_int = self.interp_adm( alpha2 )
+        self.a2_int = self.interp_adm( a2 )
         
         return rho_adm, P_adm, S_adm
 
@@ -199,15 +197,13 @@ class ADMSolver:
 
     def calculate_metric( self, rho_adm: np.ndarray, P_adm: np.ndarray, S_adm: np.ndarray ):
 
-        # if self.verbose: print('----- calculating full metric.')
-        
         # interpolated quantities
-        rho_adm_int     = self.interp_grid( rho_adm )
-        j_adm_int       = self.interp_grid( P_adm )
+        rho_adm_int     = self.interp_adm( rho_adm )
+        j_adm_int       = self.interp_adm( P_adm )
 
         r = self.grid
 
-        # integrands for initial value problem solver
+        # integrands for initial value problem solver, eq. 16-17 in Barker et al. 2024
         def f(x, V):
 
             da = (V[0]
@@ -332,8 +328,6 @@ class ADMSolver:
 
     def calculate_ADM( self, a, alpha, beta ):
 
-        # if self.verbose: print('----- calculating metric in newtonian limit.')
-
         r = self.grid
 
         rho_adm = np.zeros(self.zones)
@@ -413,15 +407,15 @@ class ADMSolver:
             r = self.grid
 
         # we need interpolators for these (using the input grid for creation, then extrapolating)
-        self.rho_adm = self.interp_grid( rho_adm0 )(r)
-        self.P_adm = self.interp_grid( P_adm0 )(r)
-        self.S_adm = self.interp_grid( S_adm0 )(r)
-        self.Srr_adm = self.interp_grid( Srr_adm0 )(r)
+        self.rho_adm = self.interp_adm( rho_adm0 )(r)
+        self.P_adm = self.interp_adm( P_adm0 )(r)
+        self.S_adm = self.interp_adm( S_adm0 )(r)
+        self.Srr_adm = self.interp_adm( Srr_adm0 )(r)
         
         # TODO: determine if we want to save the metric or not (e.g. do we need these?)
-        # a = self.interp_grid( a0 )(r)
-        # K = self.interp_grid( K0 )(r)
-        # alpha = self.interp_grid( alpha0 )(r)
+        # a = self.interp_adm( a0 )(r)
+        # K = self.interp_adm( K0 )(r)
+        # alpha = self.interp_adm( alpha0 )(r)
 
         self.grid0 = r # new grid for r -> 0!
         self.rho   = self.rho_m_int(r)
@@ -452,3 +446,52 @@ class ADMSolver:
         ])
 
         return phb_profile
+
+
+class piecewise:
+
+    '''
+        small python implementation of Jonah's quadradtic piecewise interpolation method that's in the main codebase;
+        see monopole_gr/monopole_gr_base.hpp for a full reference and the original source code.
+    '''
+
+    def __init__(self, x0: np.ndarray, y):
+        self.x0 = x0
+        self.y = y
+
+    def __call__(self, x):
+
+        # rgrid/radius/x0 is existing grid, r/x is what we're interpolating to 
+
+        n = self.x0.size
+        x = np.asarray(x)
+        # case for if a single float is passed in
+        if x.shape == ():
+            x = np.asarray([x])
+
+        dx = np.abs(self.x0[1] - self.x0[0]) # spacing, we asssume that the original grid is uniform.
+        c0 = np.zeros(x.size)
+        c1 = np.zeros(x.size)
+        c2 = np.zeros(x.size)
+        xoffset = np.zeros(x.size)
+
+        for i in range(x.size):
+
+            ix = (np.abs( self.x0 - x[i] )).argmin() # closest index on the original grid
+            flr = ix * dx + np.min(self.x0)
+
+            c0[i] = self.y[ix]
+
+            if (ix == 0) :
+                c1[i] = -(3 * self.y[ix] - 4. * self.y[ix + 1] + self.y[ix + 2]) / (2 * dx)
+                c2[i] = (self.y[ix] - 2 * self.y[ix + 1] + self.y[ix + 2]) / (2 * dx * dx)
+            elif (ix == n - 1):
+                c1[i] = (3 * self.y[ix - 2] - 4 * self.y[ix - 1] + 3 * self.y[ix]) / (2 * dx)
+                c2[i] = (self.y[ix - 2] - 2 * self.y[ix - 1] + self.y[ix]) / (2 * dx * dx)
+            else:
+                c1[i] = (self.y[ix + 1] - self.y[ix - 1]) / (2 * dx)
+                c2[i] = (self.y[ix + 1] - 2 * self.y[ix] + self.y[ix - 1]) / (2 * dx * dx)
+    
+            xoffset[i] = x[i] - flr
+
+        return c0 + (c1 * xoffset) + (c2 * xoffset * xoffset)

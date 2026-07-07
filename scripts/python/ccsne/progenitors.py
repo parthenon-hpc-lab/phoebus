@@ -284,8 +284,8 @@ def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, EOS
 
     # formatting for header
     fmt_header = '\t'.join(['%-20s'] * 11)
-    tup_header = ( 'radius [cm]', 'density [g/cm^3]', 'temperature [K]',  'ye', 'sie [erg/g]', 'velocity [cm/s]','pressure [dyne/cm^2]', 'density [ADM]', 'pressure [ADM]', 'S [ADM]', 'S_rr [ADM]')
-    tup_header_conv = ( 'radius', 'density', 'temperature',  'ye', 'sie', 'velocity','pressure', 'density [ADM]', 'pressure [ADM]', 'S [ADM]', 'S_rr [ADM]')
+    tup_header = ( 'radius [cm]', 'density [g/cm^3]', 'temperature [K]',  'ye', 'sie [erg/g]', 'velocity [cm/s]','pressure [dyne/cm^2]', 'density [ADM]', 'momentum [ADM]', 'S [ADM]', 'S^r_r [ADM]')
+    tup_header_conv = ( 'radius', 'density', 'temperature',  'ye', 'sie', 'velocity','pressure', 'density [ADM]', 'momentum [ADM]', 'S [ADM]', 'S^r_r [ADM]')
     
     # saves the unconverted profile with primitives + ADM quantities
     if save_unconverted:
