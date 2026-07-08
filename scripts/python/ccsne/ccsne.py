@@ -14,7 +14,7 @@ import time
 
 # our custom helper classes/methods
 from progenitors import get_MESA_profile, get_KEPLER_profile, get_GR1D_profile
-from progenitors import wmavg, interp_to_eulerian
+from progenitors import wmavg, interp_to_eulerian, fixup_rad_vel
 from progenitors import save_raw_profile, save_ADM_profile
 
 # deprecated, for testing only
@@ -81,6 +81,9 @@ def get_params( parser ) -> None:
     parser.add_argument('--iterations', type=int, default=100)
     parser.add_argument('--dalpha-eps', type=float, default=1.0e-12)
     parser.add_argument('--extrapolate', action = 'store_true', default=False)
+
+    # ----- FLASH-style fixup, velocity and radius
+    parser.add_argument('--do-fixup', action = 'store_true', default=False)
 
     # ----- saving files
     parser.add_argument('--save-path', type=str, default='')
@@ -178,8 +181,11 @@ def main( ):
     adm = ADMSolver( params.adm_problem, os.path.join(params.save_path, raw_prof_name), params.eos_path, params.eos_type, params.use_def_rad, params.use_rhocut, params.rhocut, params.use_radcut, params.radcut, params.use_custom, params.custom_min, params.custom_max, params.zones, params.interp_method, params.bc_type, params.interp_method_adm, params.iterations, params.dalpha_eps, params.extrapolate, params.verbose)
     adm_prof = adm.get_final_profile()
 
-    # save phoebus profiles (progenitors.py)
+    # fixup the radius (face to cell centered) and first zone of velocity 
+    if params.do_fixup:
+        fixup_rad_vel( adm_prof, params.verbose )
 
+    # save phoebus profiles (progenitors.py)
     # optional: if we choose not to save the raw profile, delete here.
     if not params.save_raw:
         os.remove( os.path.join( params.save_path, raw_prof_name) )

@@ -219,6 +219,28 @@ def interp_to_eulerian( prof, factor = 4, use_drad = False, drad = 1e7):
     return prof_interp
 
 
+def fixup_rad_vel( prof: np.ndarray, verbose = False ):
+
+    if verbose: print('>>> applying FLASH-style fixup to radius and first zone of velocity.')
+        
+    rad0 = prof[:, 0]
+    vel = prof[:, 5]
+    rad = np.zeros(rad0.size)
+    
+    # changing the radius to cell-centered values (rather than edge)
+    rad[0] = 0.5 * rad0[0]
+
+    for i in range(1, rad.size):
+        rad[i] = 0.5 * ( rad0[i] + rad0[i - 1] )
+
+    # fixing first zone of velocity profile
+    dvdr = vel[0]/rad[0]
+    vel[0] = rad[0] * dvdr 
+
+    # replacing with new radius
+    prof[:, 0] = rad 
+
+
 # KEEP FOR GENERAL TESTING/V&V!!
 # old method of sampling
 def subsample_depr( x, radius_cm, factor=4, verbose=False, get_factor=False, uniform=False):

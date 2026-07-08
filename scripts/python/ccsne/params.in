@@ -50,6 +50,8 @@ parameter           default (example, if required)      description + defaults +
 --dalpha-eps        1.0e-12                             (optional) TODO:: docs????
 --extrapolate                                           (optional, bool) extrapolate the output grid to r = 0. 
 
+--do-fixup                                              (optional, bool) enables a FLASH-style fixup to radius (face --> cell centered) and first (inner) zone velocity
+
 --save-path         test-profiles                       absolute or relative path to desired directory to save all output
 --save-info                                             (optional, bool) saves info file for cgs -> phb unit conversions and input
 --save-unconverted                                      (optional, bool) saves output for phoebus before conversion to phb units
