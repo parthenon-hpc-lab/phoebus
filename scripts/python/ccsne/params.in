@@ -22,8 +22,12 @@ parameter           default (example, if required)      description + defaults +
 --wma-exp           3                                   (optional) exponent to raise wma weights to
 
 --factor-interp     10                                  (optional) factor to increase profile radial grid resolution by
+
 --use-drad-interp                                       (optional, bool) enables radial spacing critera for interpolation instead of factor, recommended for lagrangian (mass coordinate) input models
---drad-interp       1e8                                 (optional) if using radial spacing for interpolation, sets minimum spacing requirement in cm
+--drad-interp       1e7                                 (optional) if using radial spacing for interpolation, sets minimum spacing requirement in cm
+
+--use-uniform                                           (optional, bool) determines if the higher resolution profile uses a uniform grid
+--unif-max          5.0e9                               (optional) if above disabled, sets outer boundary of inner uniform grid (uniform > log)
 
 --adm-problem       StellarTable                        (optional) type of ADM interpolation to use, default: StellarCollapse (options: StellarCollapse, tov, homologous)                       
 --eos-path          ../grsolver/SFHo.h5                 absolute or relative path to eos table (must be *.h5 file)

@@ -48,9 +48,13 @@ def get_params( parser ) -> None:
     parser.add_argument('--wma-vel', action = 'store_true', default=False)
     parser.add_argument('--wma-n', type=int, default=100)
     parser.add_argument('--wma-exp', type=int, default=3)
+
     parser.add_argument('--factor-interp', type=int, default=10)
     parser.add_argument('--use-drad-interp', action = 'store_true', default=False)
-    parser.add_argument('--drad-interp', type=float, default=1e8)
+    parser.add_argument('--drad-interp', type=float, default=1e7)
+    
+    parser.add_argument('--use-uniform', action = 'store_true', default=False)
+    parser.add_argument('--unif-max', type=float, default=5e9)
 
     # ----- adm solver options
     # -- path (post progenitor), eos path, eos type

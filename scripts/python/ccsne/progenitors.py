@@ -62,11 +62,11 @@ def get_MESA_profile( PATH: str, header=4, verbose=False ) -> np.ndarray:
     return profnp
 
 
-def get_KEPLER_profile( PATH: str, header=0, verbose=False ) -> np.ndarray:
+def get_KEPLER_profile( PATH: str, header=1, verbose=False ) -> np.ndarray:
 
     # loading in the profile using pandas dataframe
     try: 
-         prof = pd.read_csv(PATH, sep=r"\s+", header=header)
+         prof = pd.read_csv(PATH, sep='  +', header=header, engine='python')
     except: 
          raise FileNotFoundError(f'KEPLER profile not found at {PATH}.')
 
@@ -89,7 +89,7 @@ def get_KEPLER_profile( PATH: str, header=0, verbose=False ) -> np.ndarray:
                 prof['cell specific energy'],
                 omega,
                 prof['cell A_bar'],
-                prof['cell Z_bar']
+                prof['cell A_bar'] * prof['cell Y_e'] # since KEPLER doesn't provide zbar
             ])
     
     return profnp
@@ -196,7 +196,7 @@ def wmavg( data, n=1, exp=1, use_inverse=True, avg_edges=True, verbose=False):
         
     return datavg
 
-def interp_to_eulerian( prof, factor = 4, use_drad = False, drad = 1e7):
+def interp_to_eulerian( prof, factor = 4, use_drad = False, drad = 1e7, use_uniform = False, unif_max = 5e9):
 
     nzones  = prof.shape[0]
     rad0     = prof[:, 0] # we assume the whole profile is passed in.
@@ -208,9 +208,18 @@ def interp_to_eulerian( prof, factor = 4, use_drad = False, drad = 1e7):
             factor += 1
             drad0 = (rad0[-1] - rad0[0]) / (nzones * factor)
     
-    rad = np.linspace(rad0[0], rad0[-1], nzones * factor)
+    if use_uniform:
+        rad = np.linspace(rad0[0], rad0[-1], nzones * factor)
+        prof_interp = np.zeros( (nzones * factor, prof.shape[1]) )
+    
+    else:
+        unif_zones = np.abs(rad0 - unif_max).argmin()
+        rad_unif = np.linspace(rad0[0], unif_max, unif_zones)
+        rad_log = np.logspace(np.log10(unif_max), np.log10(rad0[-1]), 1000)
+        rad = np.concatenate( (rad_unif, rad_log[1:]), axis = 0)
+        prof_interp = np.zeros( (rad.size, prof.shape[1]) )
 
-    prof_interp = np.zeros( (nzones * factor, prof.shape[1]) )
+    
     prof_interp[:, 0] = rad
 
     for i in range(1, prof.shape[1]):
