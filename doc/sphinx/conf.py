@@ -21,6 +21,9 @@ extensions = [
     "sphinx.ext.todo",
     "sphinx_copybutton",
     "sphinx_sitemap",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.napoleon",
 ]
 
 # Add any paths that contain templates here, relative to this directory.

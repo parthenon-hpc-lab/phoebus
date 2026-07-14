@@ -113,7 +113,7 @@ def make_info_file(
         fout.write(
             '# -----conversion factors, multiply to get back to cgs [phb -> cgs]\n'
         )
-        fout.write(fmt % (1 / R0, 'radius'))
+        fout.write(fmt % (R0, 'radius'))
         fout.write(fmt % (1 / ((c**2.0) / G / M0), 'density'))
         fout.write(fmt % (1 / kB, 'temperature'))
         fout.write(fmt % (c**2.0, 'sie'))

@@ -4,13 +4,8 @@
     the following stellar evolution/ccsne codes:
         > MESA
         > KEPLER
-        > GR1D (default is at bounce)
-
+        > GR1D
     also contains some helper utilities for reading in GR1D time series data and bounce times.
-
-    >>> outstanding tasks
-
-        TODO: add documentation to all helper functions
         
     law. 16 jun 2026
 '''
@@ -28,6 +23,18 @@ from convert import convert_PHB_profile, make_info_file
 
 
 def get_MESA_profile( PATH: str, header=4, verbose=False ) -> np.ndarray:
+ 
+    '''
+    Retrieves a MESA stellar evolution profile.
+
+    Args:
+        PATH (str): Path to the desired profile.
+        header (int, optional): Line number where column headers begin (zero-indexed). Default is 4.
+        verbose (bool, optional): Enables command line output. Defaults to False.
+
+    Returns:
+        np.ndarray: original profile values of [radius, velocity, density, pressure, ye, temperature, energy, omega, abar, zbar], from innermost radial coordinate outward.
+    '''
 
     # loading in the profile using pandas dataframe
     try: 
@@ -63,6 +70,18 @@ def get_MESA_profile( PATH: str, header=4, verbose=False ) -> np.ndarray:
 
 
 def get_KEPLER_profile( PATH: str, header=1, verbose=False ) -> np.ndarray:
+ 
+    '''
+    Retrieves a KEPLER-style stellar evolution profile.
+
+    Args:
+        PATH (str): Path to the desired profile.
+        header (int, optional): Line number where column headers begin (zero-indexed). Default is 1.
+        verbose (bool, optional): Enables command line output. Defaults to False.
+
+    Returns:
+        np.ndarray: original profile values of [radius, velocity, density, pressure, ye, temperature, energy, omega, abar, zbar], from innermost radial coordinate outward.
+    '''
 
     # loading in the profile using pandas dataframe
     try: 
@@ -95,8 +114,22 @@ def get_KEPLER_profile( PATH: str, header=1, verbose=False ) -> np.ndarray:
     return profnp
 
 
-def get_GR1D_profile( PATH: str, at_bounce = True, time = -1, verbose = False ) -> np.ndarray:
-    
+def get_GR1D_profile( PATH: str, at_bounce = True, time = -1.0, verbose = False ) -> np.ndarray:
+     
+    '''
+    Retrieves a GR1D explosion profile.
+
+    Args:
+        PATH (str): Path to the desired profile.
+        at_bounce (bool, optional): Finds the time of core bounce from GR1D's `tbounce.dat` output file.  Defaults to True.
+        time (float, optional): If at_bounce is false, use GR1D output files nearest to this time (in seconds).
+        verbose (bool, optional): Enables command line output. Defaults to False.
+
+    Returns:
+        np.ndarray: original profile values of [radius, velocity, density, pressure, ye, temperature, energy, omega, abar, zbar], from innermost radial coordinate outward.
+    '''
+
+
     try:
 
         if at_bounce: # pulls the bounce time from GR1D's default output
@@ -167,7 +200,30 @@ def get_GR1D_profile( PATH: str, at_bounce = True, time = -1, verbose = False ) 
 ### ------------ data handling utilities for going from lagrangian-style grids (most 1d codes, mass coord) to eulerian resolution for phoebus
 
 # takes a weighted moving average of data, intended for smoothing of velocity profiles after subsampling...
-def wmavg( data, n=1, exp=1, use_inverse=True, avg_edges=True, verbose=False):
+def wmavg( data: np.ndarray, n=1, exp=1, use_inverse=True, avg_edges=True, verbose=False):
+
+    r'''
+    Takes a weighted moving average of an array, using either a traditional or inverse method.
+        $w_i = i^e$ (traditional)
+        $w_i = \frac{1}{i^e}$ (inverse)
+
+    for $i = 1...n$ and exponent $e$. Weights are applied to the data in the array from indices (j - n)...(j + n) so that the n elements to the left and right of the central value at index j are weighted accordingly and applied to the average.
+    The central value $a$ is weighted at one. So for some central value $a$, we find
+        $a_{wma} = \sum_{i = 1}^{n} x_i w_i \cdot (\sum_{i = 1}^{n} w_i)^{-1}
+
+    Args:
+        data (np.ndarray): The array to be averaged.
+        n (int, optional): The averaging `window`. For some central index j, averaging will occur from indices (j - n)...(j + n). Default is 1.
+        exp (int, optional): The exponent to raise each weight to. Default is 1.
+        use_inverse (bool, optional): Enables the use of the inverse weighting method. Defaults to True.
+        avg_edges (bool, optional): Enables a reduced weighted mean average on the values at indices 0...n and (m - n)...m for an array of size m. Default is True, 
+            recommended to avoid edge effects or discontinuities in data.
+        verbose (bool, optional): Enables command line output. Defaults to False.
+
+    Returns:
+        np.ndarray: The `smoothed` data with a rolling weighted mean average applied to every element.
+
+    '''
     datavg = np.copy(data)
 
     # constructing our array of weights
@@ -196,7 +252,23 @@ def wmavg( data, n=1, exp=1, use_inverse=True, avg_edges=True, verbose=False):
         
     return datavg
 
-def interp_to_eulerian( prof, factor = 4, use_drad = False, drad = 1e7, use_uniform = False, unif_max = 5e9):
+def interp_to_eulerian( prof: np.ndarray, factor = 4, use_drad = False, drad = 1e7, use_uniform = False, unif_max = 5e9):
+
+    '''
+    Increases the radial resolution of a Lagrangian (mass coordinate) input profile to an Eulerian-appropriate radial resolution.
+
+    Args:
+        prof (np.ndarray): Original Lagrangian stellar/ccsne profile (from MESA, KEPLER, GR1D...).
+        factor (int): Factor to increase radial resolution by. Default is 4, **not recommended** for `phoebus`.
+        use_drad (bool, optional): Enables the use of a specific radial spacing. Default is False.
+        drad (float, optional): If use_drad enabled, specifices desired minimum radial spacing (in cm). Default is 1.0e7 cm
+        use_uniform (bool, optional): Creates a uniformly spaced grid over the full radial domain. Default is False, **not recommended** for `phoebus`.
+        rad_max (float, optional): If use_uniform not enabled, sets the radius (in cm) at which the transiton from uniform (linear) radial grid to log radial grid occurs. Default is 5.0e9 cm.
+
+    Returns:
+        np.ndarray: The original profile, with increased radial resolution.
+
+    '''
 
     nzones  = prof.shape[0]
     rad0     = prof[:, 0] # we assume the whole profile is passed in.
@@ -230,6 +302,18 @@ def interp_to_eulerian( prof, factor = 4, use_drad = False, drad = 1e7, use_unif
 
 def fixup_rad_vel( prof: np.ndarray, verbose = False ):
 
+    '''
+    Applies a FLASH-style fixup (Couch et al. 2013...) to a stellar/ccsne profile. This includes:
+        - Adjusting the radius to be cell-centered values (instead of edge)
+        - Fixing the innermost zone of the velocity to be consistent with new radial values (all other primitives assumed piecewise const.)
+    
+    Args:
+        prof (np.ndarray): Post-ADM, Eulerian stellar/ccsne profile (from MESA, KEPLER, GR1D...). 
+            Assumed to be in following column order: ['radius', 'density', 'temperature',  'ye', 'sie', 'velocity','pressure', 'density [ADM]', 'momentum [ADM]', 'S [ADM]', 'S^r_r [ADM]']
+        verbose (bool, optional): Enables command line output. Defaults to False.
+
+    '''
+
     if verbose: print('>>> applying FLASH-style fixup to radius and first zone of velocity.')
         
     rad0 = prof[:, 0]
@@ -238,12 +322,13 @@ def fixup_rad_vel( prof: np.ndarray, verbose = False ):
     
     # changing the radius to cell-centered values (rather than edge)
     rad[0] = 0.5 * rad0[0]
+    drad = rad[1] - rad[0]
 
     for i in range(1, rad.size):
         rad[i] = 0.5 * ( rad0[i] + rad0[i - 1] )
 
     # fixing first zone of velocity profile
-    dvdr = vel[0]/rad[0]
+    dvdr = vel[0]/drad
     vel[0] = rad[0] * dvdr 
 
     # replacing with new radius
@@ -294,15 +379,30 @@ def subsample_depr( x, radius_cm, factor=4, verbose=False, get_factor=False, uni
 ### ---------------------------------------------------------------
 ### ------------ handles saving profiles to either adm.py input or phoebus style input (in physical and code units)
 
-def save_raw_profile( profile: np.ndarray, model_name: str, model_type: str, time = 0.0, OUTPATH = '', verbose = True ):
+def save_raw_profile( prof: np.ndarray, model_name: str, model_type: str, time = 0.0, OUTPATH = '', verbose = False ):
     
+    '''
+    Saves a processed (pre-ADM) stellar/ccsne profile to a ASCII- and numpy-readable file (with nice formatting).
+        File naming convention is `(model_name)_(model_type).prof`.
+    
+    Args:
+         prof (np.ndarray): Post-ADM, Eulerian stellar/ccsne profile (from MESA, KEPLER, GR1D...). 
+            Assumed to be in following column order: [radius, velocity, density, pressure, ye, temperature, energy, omega, abar, zbar]
+        model_name (str): Model name.
+        model_type (str): Model type (e.g. MESA, KEPLER, GR1D...).
+        time (float, optional): Time elapsed since infall (in seconds). Default is 0 s, **recommended** for GR1D models.
+        OUTPATH (str, optional): Desired directory to save file in. Default is current working directory.
+        verbose (bool, optional): Enables command line output. Defaults to False.
+        
+    '''
+
     # formatting for the header (to align with columns)
     fmt_header = '\t'.join(['%-20s'] * 10)
     tup_header = ( 'radius [cm]', 'velocity [cm/s]', 'density [g/cm^3]', 'pressure [dyne/cm^2]', 'ye', 'temperature [K]', 'sie [erg/g]', 'omega [rad/s]', 'abar', 'zbar')
 
     np.savetxt(
         os.path.join(OUTPATH, f'{model_name}_{model_type.lower()}.prof'),
-        profile,
+        prof,
         delimiter   ='\t',
         fmt         = '%20.15e',
         header      = f'initial {model_type.upper()} profile from model `{model_name}` at time {time:.4f} s.\n{fmt_header % tup_header}'
@@ -311,7 +411,30 @@ def save_raw_profile( profile: np.ndarray, model_name: str, model_type: str, tim
     if verbose: print(f'>>> saved raw profile from {model_type.upper()} model `{model_name}` at time {time:.4f} s to {OUTPATH}.')
 
 
-def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type = 'stellarcollapse', time = 0.0, OUTPATH = '', save_unconverted = True, save_info = True, verbose = True ):
+def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type = 'stellarcollapse', time = 0.0, OUTPATH = '', save_unconverted = True, save_info = True, verbose = False ):
+
+    '''
+    Saves a processed, post-ADM, converted (code units) phoebus input profile to a ASCII- and numpy-readable file (with nice formatting). Also saves:
+        - unconverted (cgs units) phoebus input profile (optional)
+        - model info file with characteristic values, unit conversions, and progenitor + eos bounds (optional)
+
+    File naming conventions are:
+        - `(model_name)_(model_type)_adm_converted.prof`.
+        - `(model_name)_(model_type)_adm.prof`.
+        - `(model_name)_(model_type).info`.
+    
+    Args:
+         prof (np.ndarray): Post-ADM, Eulerian stellar/ccsne profile (from MESA, KEPLER, GR1D...). 
+            Assumed to be in following column order: ['radius', 'density', 'temperature',  'ye', 'sie', 'velocity','pressure', 'density [ADM]', 'momentum [ADM]', 'S [ADM]', 'S^r_r [ADM]']
+        model_name (str): Model name.
+        model_type (str): Model type (e.g. MESA, KEPLER, GR1D...).
+        time (float, optional): Time elapsed since infall (in seconds). Default is 0 s, **recommended** for GR1D models.
+        OUTPATH (str, optional): Desired directory to save file(s) in. Default is current working directory.
+        save_unconverted (bool, optional): If enabled, saves profile in cgs units. Defaults to True.
+        save_info (bool, optional): If enabled, saves info file with characteristic values, conversions, and bounds. Defaults to True.
+        verbose (bool, optional): Enables command line output. Defaults to False.
+        
+    '''
 
     # formatting for header
     fmt_header = '\t'.join(['%-20s'] * 11)
@@ -352,7 +475,17 @@ def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, EOS
 ### ------------ GR1D utilities for reading time series data/output
 
 def read_time_series( PATH: str ):
-    """Reads a time series file with radial profiles at each time step."""
+    '''
+    Reads a time series file from GR1D (*.xg) for some arbitrary quantity at each time step.
+    
+    Args:
+        PATH (str): Path to the run directory (should contain all GR1D output files).
+
+    Returns:
+        dict: Time series data (key: time, value: quantity at that timestep).
+        list: Times that correspond to the keys in the full dictionary.
+    
+    '''
     time_series_data = {}
     ordered_times = []
 
@@ -386,9 +519,27 @@ def read_time_series( PATH: str ):
     return time_series_data, sorted(ordered_times)
 
 def find_nearest_time( target_time: float, times: set ):
-    """Find the time closest to the requested target time."""
+    '''Finds the time closest to the requested target time given a list of timesteps.
+    
+    Args:
+        target_time (float): Desired time (in seconds) to search for.
+        times (set): List or set of timesteps or keys to search through.
+        
+    Returns:
+
+        float: Time or key nearest to the provided target time.
+
+    '''
     return min(times, key=lambda t: abs(t - target_time))
 
 def get_tbounce( PATH: str ) -> float:
-    ''' Retrieves the time of bounce from the default GR1D output.'''
+    ''' Retrieves the time of bounce from the default GR1D output.
+    
+    Args:
+        PATH (str): Path to the run directory (should contain all GR1D output files).
+        
+    Returns:
+        float: The time of core bounce, as given in `tbounce.dat`.
+        
+    '''
     return np.loadtxt( os.path.join(PATH, 'tbounce.dat') )[0]
