@@ -6,6 +6,10 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+# adding a source path for documentation contained in python script docstrings
+import os, sys
+sys.path.insert(0, os.path.join('..', '..', 'scripts', 'python'))
+
 project = "Phoebus"
 copyright = "2024, Triad National Security"
 author = "The Phoebus Team"
