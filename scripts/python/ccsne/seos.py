@@ -3,6 +3,23 @@ import numpy as np
 
 
 def calculate_eos_energy_stellarcollapse(rho: np.ndarray, T: np.ndarray, ye: np.ndarray, filename: str ):
+
+    '''
+    Calculates an EOS-consistent specific internal energy for a stellar/ccsne progenitor profile using a StellarCollpase equation
+    of state and `Singularity-EOS` Python bindings.
+
+    Args:
+        rho (np.ndarray): Density of the profile.
+        T (np.ndarray): Temperature of the profile.
+        ye (np.ndarray): Electron fraction of the profile.
+        filename (str): Full filename and path pointing to the *.h5 tabulated equation of state.
+
+    Returns:
+        np.ndarray: Specific internal energy of the profile.
+        np.ndarray: Energy density of the profile.
+
+    '''
+
     eos = StellarCollapse(filename, use_sp5=False, filter_bmod=True)
     nlambda = eos.nlambda  # get number of elements per lambda
     lmbda = np.zeros(nlambda, dtype=np.double)
@@ -17,6 +34,23 @@ def calculate_eos_energy_stellarcollapse(rho: np.ndarray, T: np.ndarray, ye: np.
     return eps, u
 
 def calculate_eos_energy_helmholtz(rho: np.ndarray, T: np.ndarray, abar: np.ndarray, zbar: np.ndarray, filename: str):
+
+    '''
+    Calculates an EOS-consistent specific internal energy for a stellar/ccsne progenitor profile using a Helmholtz equation
+    of state and `Singularity-EOS` Python bindings.
+
+    Args:
+        rho (np.ndarray): Density of the profile.
+        T (np.ndarray): Temperature of the profile.
+        ye (np.ndarray): Electron fraction of the profile.
+        filename (str): Full filename and path pointing to the *.h5 tabulated equation of state.
+
+    Returns:
+        np.ndarray: Specific internal energy of the profile.
+        np.ndarray: Energy density of the profile.
+
+    '''
+        
     eos = Helmholtz(filename)
     nlambda = eos.nlambda  # get number of elements per lambda
     lmbda = np.zeros(nlambda, dtype=np.double)
@@ -33,6 +67,19 @@ def calculate_eos_energy_helmholtz(rho: np.ndarray, T: np.ndarray, abar: np.ndar
 
 
 def get_eos_bounds( filename: str, eos_type='stellarcollapse') -> np.ndarray:
+
+    '''
+    Calculates the upper and lower bounds (in density, temperature, specific internal energy, and electron fraction)
+    of a tabulated Stellar Collapse equation of state. 
+
+    Args:
+        filename (str): Full filename and path pointing to the *.h5 tabulated equation of state.
+        eos_type (str, optional): The type of tabulated EOS. Default is 'StellarCollapse'.
+
+    Returns:
+        np.ndarray: EOS bounds, in the following order: [rhoMin, rhoMax, TMin, TMax, sieMin, sieMax, YeMin, YeMax]
+
+    '''
 
     if eos_type.lower().strip() == 'stellarcollapse':
         eos = StellarCollapse(filename, use_sp5=False, filter_bmod=True)

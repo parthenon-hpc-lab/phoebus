@@ -8,7 +8,7 @@
 
 # adding a source path for documentation contained in python script docstrings
 import os, sys
-sys.path.insert(0, os.path.join('..', '..', 'scripts', 'python'))
+sys.path.insert(0, os.path.join('..', '..', 'scripts', 'python', 'ccsne'))
 
 project = "Phoebus"
 copyright = "2024, Triad National Security"
@@ -28,6 +28,15 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
+]
+
+# adding mock imports so autodoc doesn't crash on external dependencies/libraries
+autodoc_mock_imports = [
+    "numpy",
+    "astropy",
+    "scipy",
+    "pandas",
+    "singularity_eos",
 ]
 
 # Add any paths that contain templates here, relative to this directory.

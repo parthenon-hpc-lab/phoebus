@@ -25,174 +25,133 @@ Like ``Phoebus``, this pipeline works through a master input file. You can run t
 
 Within the input file, there are a variety of flags and options that can be used to process your stellar progenitor.
 
-.. list-table:: Parameters
+.. list-table:: 
    :header-rows: 1
-   :widths: 18 22 10 50
+   :widths: 20 25 55
 
    * - Parameter
      - Default
-     - Optional?
      - Description
    * - ``--model-path``
      - ``../lawhite/mesa/15m_at_cc.dat``
-     - 
      - Absolute or relative path to input model/data.
    * - ``--model-name``
      - ``aag21``
-     - 
      - Desired name/id for your model.
    * - ``--model-type``
      - ``MESA``
-     - 
-     - Type of model. Options: ``MESA``, ``GR1D``, ``KEPLER``.
+     - Type of model (options: MESA, GR1D, KEPLER).
    * - ``--model-header``
      - ``-1``
-     - x
-     - Number of header lines in model file. If < 0, goes to defaults (MESA: 4, KEPLER: 1).
+     - (optional) Line number (zero-indexed) of the profile header (if < 0, goes to defaults - MESA: 4, KEPLER: 1).
    * - ``--atbounce``
-     - 
-     - x
-     - If using a GR1D model, pulls data files at bounce (true/false).
+     -
+     - (bool) If using a GR1D model, pulls data files at bounce.
    * - ``--timestamp``
      - ``0.3``
-     - x
-     - If using a GR1D model and ``atbounce = false``, gets data from timestep (in seconds).
+     - (optional) If using a GR1D model and atbounce = false, gets data from timestep (in seconds).
    * - ``--wma-vel``
-     - 
-     - x
-     - Enables weighted mean averaging for velocity (true/false).
+     -
+     - (optional, bool) Enables weighted mean averaging for velocity.
    * - ``--wma-all``
-     - 
-     - x
-     - Enables weighted mean averaging for all primitives in profile (true/false).
+     -
+     - (optional, bool) Enables weighted mean averaging for all primitives in profile.
    * - ``--wma-n``
      - ``100``
-     - x
-     - Window for weighted mean average.
+     - (optional) Window for weighted mean average.
    * - ``--wma-exp``
      - ``3``
-     - x
-     - Exponent to raise wma weights to.
+     - (optional) Exponent to raise wma weights to.
    * - ``--factor-interp``
      - ``10``
-     - x
-     - Factor to increase profile radial grid resolution by.
+     - (optional) Factor to increase profile radial grid resolution by.
    * - ``--use-drad-interp``
-     - 
-     - x
-     - Enables radial spacing criteria for interpolation instead of factor. Recommended for lagrangian (mass coordinate) input models (true/false).
+     -
+     - (optional, bool) Enables radial spacing critera for interpolation instead of factor, recommended for lagrangian (mass coordinate) input models.
    * - ``--drad-interp``
      - ``1e7``
-     - x
-     - If using radial spacing for interpolation, sets minimum spacing requirement in cm.
+     - (optional) If using radial spacing for interpolation, sets minimum spacing requirement in cm.
    * - ``--use-uniform``
-     - 
-     - x
-     - Determines if the higher resolution profile uses a uniform grid (true/false).
+     -
+     - (optional, bool) Determines if the higher resolution profile uses a uniform grid.
    * - ``--unif-max``
      - ``5.0e9``
-     - x
-     - If above disabled, sets outer boundary of inner uniform grid (uniform > log).
+     - (optional) If above disabled, sets outer boundary of inner uniform grid (uniform > log).
    * - ``--adm-problem``
      - ``StellarTable``
-     - x
-     - Type of ADM interpolation to use. Default: ``StellarCollapse``. Options: ``StellarCollapse``, ``tov``, ``homologous``.
+     - (optional) Type of ADM interpolation to use, default: StellarCollapse (options: StellarCollapse, tov, homologous).
    * - ``--eos-path``
      - ``../grsolver/SFHo.h5``
-     - 
-     - Absolute or relative path to eos table (must be ``*.h5`` file).
+     - Absolute or relative path to eos table (must be \*.h5 file).
    * - ``--eos-type``
      - ``StellarCollapse``
-     - x
-     - Type of tabulated eos. Default: ``StellarCollapse``. Options: ``StellarCollapse``, ``Helmholtz``.
+     - Type of tabulated eos, default: StellarCollapse (options: StellarCollapse, Helmholtz).
    * - ``--use-rhocut``
-     - 
-     - x
-     - Enables a density-only cut for the new grid (true/false).
+     -
+     - (bool) Enables a density-only cut for the new grid.
    * - ``--rhocut``
      - ``2.0e3``
-     - x
-     - If using rhocut, the density to truncate at in g/cm^3.
+     - (optional) If using rhocut, the density to truncate at in g/cm^3.
    * - ``--use-radcut``
-     - 
-     - x
-     - Enables a radius-only cut for the new grid; keeps original inner radius (true/false).
+     -
+     - (bool) Enables a radius-only cut for the new grid; keeps original inner radius.
    * - ``--radcut``
      - ``1.0e9``
-     - x
-     - If using radcut, the radius to truncate at in cm.
+     - (optional) If using radcut, the radius to truncate at in cm.
    * - ``--use-custom``
-     - 
-     - x
-     - Lets user input custom grid (radial) in cm (true/false).
+     -
+     - (bool) Lets user input custom grid (radial) in cm.
    * - ``--custom-min``
      - ``5.0e5``
-     - x
-     - Inner radial limit for custom grid in cm.
+     - (optional) Inner radial limit for custom grid in cm.
    * - ``--custom-max``
      - ``5.0e9``
-     - x
-     - Outer radial limit for custom grid in cm.
+     - (optional) Outer radial limit for custom grid in cm.
    * - ``--use-def-rad``
-     - 
-     - x
-     - Uses the default input radial grid of the progenitor (best used for GR1D models at or after bounce) (true/false).
+     -
+     - (optional, bool) Uses the default input radial grid of the progenitor (best used for GR1D models at or after bounce).
    * - ``--zones``
      - ``2048``
-     - x
-     - Desired number of grid zones for new profile. Recommended to be 2^x zones for phoebus AMR.
+     - (optional) Desired number of grid zones for new profile. Recommended to be 2^x zones for phoebus AMR.
    * - ``--interp-method``
      - ``cubic``
-     - x
-     - Method of interpolation for ADM solver, non-ADM primitives. Options: ``linear``, ``cubic``, ``akima``, ``makima``.
+     - (optional) Method of interpolation for ADM solver, non-ADM primitives (options: linear, cubic, akima, makima).
    * - ``--bc-type``
      - ``not-a-knot``
-     - x
-     - Boundary conditions if using cubic interpolation. Options: ``clamped``, ``not-a-knot``, ``periodic``.
+     - (optional) Boundary conditions if using cubic interpolation (options: clamped, not-a-knot, periodic).
    * - ``--interp-method-adm``
      - ``piecewise``
-     - x
-     - Method of interpolation for ADM solver, ADM quantities. Options: ``linear``, ``piecewise``.
+     - (optional) Method of interpolation for ADM solver, ADM quantities (options: linear, piecewise).
    * - ``--iterations``
      - ``100``
-     - x
-     - Number of iterations the ADM solver will try when converging.
+     - (optional) Number of iterations the ADM solver will try when converging.
    * - ``--dalpha-eps``
      - ``1.0e-12``
-     - x
-     - TODO:: docs????
+     - (optional) Allowable variation of the lapse, s.t. dalpha must converge to be less than dalpha-eps
    * - ``--extrapolate``
-     - 
-     - x
-     - Extrapolate the output grid to r = 0 (true/false).
+     -
+     - (optional, bool) Extrapolate the output grid to r = 0.
    * - ``--do-fixup``
-     - 
-     - x
-     - Enables a FLASH-style fixup to radius (face --> cell centered) and first (inner) zone velocity (true/false).
+     -
+     - (optional, bool) Enables a FLASH-style fixup to radius (face --> cell centered) and first (inner) zone velocity.
    * - ``--save-path``
      - ``test-profiles``
-     - 
      - Absolute or relative path to desired directory to save all output.
    * - ``--save-info``
-     - 
-     - x
-     - Saves info file for cgs -> phb unit conversions and input (true/false).
+     -
+     - (optional, bool) Saves info file for cgs -> phb unit conversions and input.
    * - ``--save-unconverted``
-     - 
-     - x
-     - Saves output for phoebus before conversion to phb units (true/false).
+     -
+     - (optional, bool) Saves output for phoebus before conversion to phb units.
    * - ``--save-input``
-     - 
-     - x
-     - Saves input parameter file for future use (true/false).
+     -
+     - (optional, bool) Saves input parameter file for future use.
    * - ``--save-raw``
-     - 
-     - x
-     - Saves the processed, pre ADM solver progenitor (true/false).
+     -
+     - (optional, bool) Saves the processed, pre ADM solver progenitor.
    * - ``--depr``
-     - 
-     - x
-     - FOR TESTING ONLY. Uses original grsolver pipeline (true/false).
+     -
+     - (optional, bool) FOR TESTING ONLY, uses original grsolver pipeline.
 
 The full parameter documentation can also be found in ``phoebus/scripts/python/ccsne/params.in``, which can be copied and used as a starting template.
 
@@ -239,26 +198,26 @@ processing, progenitor I/O, troubleshooting, and more. Detailed documentation fo
 Progenitor pre-processing & i/o
 `````````````````````````````````
 
-.. automodule:: ccsne.progenitor
+.. automodule:: progenitors
     :members:
 
 
-Solving for ADM initial conditions
-``````````````````````````````````
-.. check this at some point...
-.. autoclass:: ccsne.adm.ADMSolver
-    :members:
+.. Solving for ADM initial conditions
+.. ``````````````````````````````````
+.. .. check this at some point...
+.. .. autoclass:: adm.ADMSolver
+..     :members:
 
 
 Converting to ``Phoebus`` input files
 `````````````````````````````````````
 
-.. automodule:: ccsne.convert
+.. automodule:: convert
     :members:
 
 
 There are also a few helper modules that use `singularity-eos`_ that can be used to calculate specific internal energy and get bounds for the 
 equation of state in use:
 
-.. automodule:: ccsne.seos
+.. automodule:: seos
     :members:

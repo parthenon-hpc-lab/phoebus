@@ -19,7 +19,25 @@ kB = const.k_B.cgs.value
 msun = const.M_sun.cgs.value
 
 
-def convert_PHB_profile(prof: np.ndarray) -> np.ndarray:
+def convert_PHB_profile(prof: np.ndarray):
+
+    r'''
+    Converts a post-ADM stellar/ccsne profile to a phoebus-readable input file in code (phb) units. 
+    Also calculates and provides the central density, along with characteristic mass and radius as given by
+
+        $M_0 = \rho_c^{-1/2} c^3 G^{-3/2}$
+        $R_0 = G M_0 c^{-2}$
+
+    Args:
+        prof (np.ndarray): Post-ADM, Eulerian stellar/ccsne profile (from MESA, KEPLER, GR1D...). 
+            Assumed to be in following column order: ['radius', 'density', 'temperature',  'ye', 'sie', 'velocity','pressure', 'density [ADM]', 'momentum [ADM]', 'S [ADM]', 'S^r_r [ADM]']
+
+    Returns:
+        np.ndarray: The original profile with all primitive and ADM quantities converted to code units.
+        float: Central density of the profile.
+        float: Characteristic mass of the profile.
+        float: Characteristic radius of the profile.
+    '''
 
     # the input profile has the following columns:
     # 'radius [cm]', 'density [g/cm^3]', 'temperature [K]',  'ye', 'sie [erg/g]', 'velocity [cm/s]','pressure [dyne/cm^2]',  'density [ADM]', 'pressure [ADM]', 'S [ADM]', 'S_rr [ADM]'
@@ -51,18 +69,31 @@ def convert_PHB_profile(prof: np.ndarray) -> np.ndarray:
     return prof_conv, rhoc, M0, R0
 
 
-def make_info_file(
-    rhoc: float,
-    M0: float,
-    R0: float,
-    prof_conv: np.ndarray,
-    model_name: str,
-    model_type: str,
-    EOSPATH: str,
-    eos_type='stellarcollapse',
-    OUTPATH='',
-) -> None:
+def make_info_file( rhoc: float, M0: float, R0: float, prof_conv: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type='stellarcollapse', OUTPATH='') -> None:
+    '''
+    Generates and outputs a summary/info file for a post-ADM, post unit conversion stellar/ccsne progenitor profile, including:
+        - characteristic values used to convert to code units, 
+        - useful length scales for the core-collapse problem, 
+        - bounds of the progenitor profile and equation of state, and
+        - conversion factors to convert between cgs and code (phb) units.
 
+    This file is ASCII- and numpy-readable for ease of use when conducting post-simulation data analysis.
+        e.g. `np.loadtxt('s15.0_mesa.info', usecols=0)`
+
+    File naming convention is `(model_name)_(model_type).info`.
+
+    Args:
+        rhoc (float): Central density of the profile.
+        M0 (float): Characteristic mass of the profile.
+        R0 (float): Characteristic radius of the profile.
+        prof_conv (np.ndarray): Post-ADM, converted Eulerian stellar/ccsne profile.
+        model_name (str): Model name.
+        model_type (str): Model type (e.g. MESA, KEPLER, GR1D...).
+        EOSPATH (str): Directory that contains the *.h5 tabulated equation of state.
+        eos_type (str, optional): The type of tabulated EOS. Options are 'StellarCollapse' or 'Helmholtz'; default is 'StellarCollapse'
+        OUTPATH (str, optional): Desired directory to save file(s) in. Default is current working directory. 
+    '''
+    
     try:
         fout = open(
             os.path.join(OUTPATH, f'{model_name}_{model_type.lower()}.info'), 'w'

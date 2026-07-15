@@ -12,7 +12,7 @@ parameter           default (example, if required)      description + defaults +
 --model-path        ../lawhite/mesa/15m_at_cc.dat       absolute or relative path to input model/data
 --model-name        aag21                               desired name/id for your model
 --model-type        MESA                                type of model (options: MESA, GR1D, KEPLER)
---model-header      -1                                  (optional) number of header lines in model file (if < 0, goes to defaults - MESA: 4, KEPLER: 1)
+--model-header      -1                                  (optional) line number (zero-indexed) of the profile header (if < 0, goes to defaults - MESA: 4, KEPLER: 1).
 --atbounce                                              (bool) if using a GR1D model, pulls data files at bounce
 --timestamp         0.3                                 (optional) if using a GR1D model and atbounce = false, gets data from timestep (in seconds)                                            
 
@@ -51,7 +51,7 @@ parameter           default (example, if required)      description + defaults +
 --interp-method-adm piecewise                           (optional) method of interpolation for ADM solver, ADM quantities (options: linear, piecewise)
 
 --iterations        100                                 (optional) number of iterations the ADM solver will try when converging
---dalpha-eps        1.0e-12                             (optional) TODO:: docs????
+--dalpha-eps        1.0e-12                             (optional) allowable variation of the lapse, s.t. dalpha must converge to be less than dalpha-eps
 --extrapolate                                           (optional, bool) extrapolate the output grid to r = 0. 
 
 --do-fixup                                              (optional, bool) enables a FLASH-style fixup to radius (face --> cell centered) and first (inner) zone velocity
