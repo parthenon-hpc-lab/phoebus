@@ -1,3 +1,16 @@
+'''
+ A refactor of Mariam's GR_Solver class, with some of the original methods and a cleaner i/o structure.
+
+    >>> outstanding tasks
+
+        TODO: update class documentation
+        TODO: update method documentation
+        TODO: ask brandon + devs about TOV and homologous cases, could reproduce if needed?
+    
+    law. 16 jun 2026
+    :meta private:
+'''
+
 from seos import *
 
 import numpy as np
@@ -19,21 +32,62 @@ c = const.c.cgs.value
 class ADMSolver:
 
     '''
+    Solves for the necessary GR quantities needed to initialize monopole GR in phoebus using the ADM (Arnowitt-Deser-Misner) formalism.
 
-    a reworked version of Mariam's GR_Solver class, with some of the original methods
-    and a cleaner i/o structure.
+    For the full details of the methodologies used, refer to 
+        - ch. XX.X of [Introduction to 3+1 Numerical Relativity](https://academic.oup.com/book/9640),
+        - the phoebus instrument paper; [Barker et al. 2024](10.48550/arXiv.2410.09146), and   
+        - the header file for monopole GR in the main phoebus codebase; monopole_gr.hpp.
 
-    >>> outstanding tasks
+    *add more detailed references, methods, assumptions here as needed!*
 
-        TODO: update class documentation
-        TODO: update method documentation
-        TODO: ask brandon + devs about TOV and homologous cases, could reproduce if needed?
-    
-    law. 16 jun 2026
+    A refactor of Mariam Gogilashvili's original GR_Solver class.
 
     '''
 
     def __init__(self, problem: str, DATPATH: str, EOSPATH: str, eos_type = 'stellarcollapse', use_def_rad = False, use_rho_cut = False, rho_cut = 2.0e3, use_rad_cut = False, rad_cut = 1e9, use_custom = False, custom_min = 5e5, custom_max = 5e9, zones=10000, interp_method = 'cubic', bc_type = 'clamped', interp_method_adm = 'piecewise', num_iterations = 100, dalpha_eps = 1.0e-12, extrapolate = True, verbose = True):
+        
+        r'''
+        Constructor for the ADMSolver class.
+
+        Args:
+            problem (str): Which desired ...
+            DATPATH (str): Desired directory to save file(s) in.
+            EOSPATH (str): Path and filename pointing to the *.h5 tabulated equation of state.
+            eos_type (str, optional): The type of tabulated EOS. Options are 'StellarCollapse' or 'Helmholtz'; default is 'StellarCollapse'
+            use_def_rad (bool, optional): If enabled, uses the original radial grid of the input progenitor profile.
+            use_rho_cut (bool, optional): If enabled, uses a density threshold (in g/cm^3) to truncate outer radial coordinate.
+            rho_cut (float, optional): Density to make the radial truncation at, if use_rho_cut enabled.
+            use_rad_cut (bool, optional): If enabled, uses a radial threshold (in cm) to truncate outer radial coordinate.
+            rad_cut (float, optional): Radius to make the radial truncation at, if use_rad_cut enabled.
+            use_custom (bool, optional): If enabled, allows user to input custom grid using radial bounds (in cm).
+            custom_min (float, optional): Minimum radius of grid, if use_custom enabled.
+            custom_max (float, optional): Maximum radius of grid, if use_custom enabled.
+            zones (int, optional): Radial resolution of the desired post-ADM grid. Also number of zones used for ADM calculations.
+            interp_method (str, optional): Interpolation method for primitive calculations/quantities. Options are 'linear', 'cubic', 'akima', 'makima'. 
+            bc_type (str, optional): Type of boundary conditions, if using cubic interpolation.
+            interp_method_adm (str, optional): Interpolation method for ADM calculations/quantities. Options are 'linear', 'piecewise'.
+            num_iterations (int, optional): Number of iterations the solver will do when attempting to converge below some $d \alpha$ threshold.
+            dalpha_eps (float, optional): Allowable variation of the lapse, $\alpha$, between solver iterations.
+            extrapolate (bool, optional): If enabled, extrapolates the post-ADM profile to r = 0.
+            verbose (bool, optional): Enables command line output. Defaults to True.
+
+        '''
+
+        self.problem    = problem.lower()
+        self.DATPATH    = DATPATH
+        self.EOSPATH    = EOSPATH
+        self.eos_type   = eos_type.lower()
+        self.n          = num_iterations
+        self.method     = interp_method.lower()
+        self.method_adm = interp_method_adm.lower()
+        self.bounds     = bc_type.lower()
+        self.zones      = zones
+        self.zones0     = zones
+        self.dalpha_eps = dalpha_eps
+        self.do_extrap  = extrapolate
+        self.verbose    = verbose
+
         self.problem    = problem.lower()
         self.DATPATH    = DATPATH
         self.EOSPATH    = EOSPATH
@@ -54,6 +108,15 @@ class ADMSolver:
 
     def interp( self, y: np.ndarray ):
 
+        '''
+        Allows for flexible selection of primitive interpolation method, based on `interp_method` at initialization.
+        Interpolates based on the original radial grid of the progenitor profile. Allows for extrapolation with all methods.
+
+        Args:
+            y (np.ndarray): the data to be interpolated.
+
+        '''
+
         if self.method == 'linear':
             return linear(self.r0, y, fill_value = 'extrapolate')
         elif self.method == 'cubic':
@@ -64,6 +127,15 @@ class ADMSolver:
             return akima(self.r0, y, method='makima', extrapolate=True)
 
     def interp_adm( self, y: np.ndarray ):
+
+        '''
+        Allows for flexible selection of ADM interpolation method, based on `interp_method_adm` at initialization.
+        Interpolates based on the new, post-ADM grid. Allows for extrapolation with all methods.
+
+        Args:
+            y (np.ndarray): the data to be interpolated.
+
+        '''
         
         # TODO: consider implementing the same piecewise polynomial method jonah uses in monopole_gr_base.hpp 
         # TODO: probably best if we only have options for basic linear interp and above method. cubic et al. do NOT work well in the core.
@@ -77,6 +149,23 @@ class ADMSolver:
 
     def get_grid_data( self, use_def_rad: bool, use_rho_cut: bool, rho_cut: float, use_rad_cut: bool, rad_cut: float, use_custom: bool, custom_min: float, custom_max: float):
         
+        '''
+        Creates a new radial grid based on initialization parameters (`use_def_rad`, `use_*_cut`, `use_custom`) and generates
+        interpolators for all primitive quantities. Also recalculates specific internal energy using `Singularity-EOS` to be consistent with the equation 
+        of state that will be used in phoebus.
+
+        Args:
+            use_def_rad (bool, optional): If enabled, uses the original radial grid of the input progenitor profile.
+            use_rho_cut (bool, optional): If enabled, uses a density threshold (in g/cm^3) to truncate outer radial coordinate.
+            rho_cut (float, optional): Density to make the radial truncation at, if use_rho_cut enabled.
+            use_rad_cut (bool, optional): If enabled, uses a radial threshold (in cm) to truncate outer radial coordinate.
+            rad_cut (float, optional): Radius to make the radial truncation at, if use_rad_cut enabled.
+            use_custom (bool, optional): If enabled, allows user to input custom grid using radial bounds (in cm).
+            custom_min (float, optional): Minimum radius of grid, if use_custom enabled.
+            custom_max (float, optional): Maximum radius of grid, if use_custom enabled.
+
+        '''
+
         if self.problem == 'stellartable':
             prof = np.loadtxt(self.DATPATH)
 
@@ -137,6 +226,13 @@ class ADMSolver:
 
     def calculate_newtonian_metric( self ):
 
+        r'''
+        Using a spherically symmetric metric, calculates the values of $\alpha^2$, $a^2$ in the weak-field (e.g. Newtonian) limit.
+
+        *TBD: add more details on math, assumptions here.*
+
+        '''
+
         # phi is the spherically symm. gravitational potential (for monopole assumption)
         phi = np.zeros(self.zones)
         dphi = np.zeros(self.zones)
@@ -164,6 +260,13 @@ class ADMSolver:
 
 
     def calculate_initial_ADM( self ):
+
+        r'''
+        Calculates initial values for ADM density, momentum, and stress tensor (??) given the Newtonian values of $\alpha^2$, $a^2$.
+
+        *TBD: add more details on math, assumptions here.*
+        
+        '''
 
         # 3-metric??
         gamma2 = 1.0 / (
@@ -196,6 +299,13 @@ class ADMSolver:
 
 
     def calculate_metric( self, rho_adm: np.ndarray, P_adm: np.ndarray, S_adm: np.ndarray ):
+
+        r'''
+        Calculates ...
+
+        *TBD: add more details on math, assumptions here.*
+        
+        '''
 
         # interpolated quantities
         rho_adm_int     = self.interp_adm( rho_adm )
@@ -328,6 +438,13 @@ class ADMSolver:
 
     def calculate_ADM( self, a, alpha, beta ):
 
+        r'''
+        Calculates ...
+        
+        *TBD: add more details on math, assumptions here.*
+        
+        '''
+
         r = self.grid
 
         rho_adm = np.zeros(self.zones)
@@ -367,6 +484,14 @@ class ADMSolver:
 
 
     def iterate( self ):
+
+        r'''
+        Iterates through the full ADM solver pipeline until we find that $d \alpha < \epsilon$, where $\epsilon$ is the threshold value
+        set at initialization by `dalpha_eps`.
+        
+        *TBD: add more details on math, assumptions here.*
+        
+        '''
         
         ### INITIAL ADM QUANTITIES
         rho_adm, P_adm, S_adm = self.calculate_initial_ADM()
@@ -395,6 +520,12 @@ class ADMSolver:
     # TODO: figure out if we actually need to interpolate to zero here or leave the inner boundary as is
     # i.e. reference FLASH/BANG??
     def calculate_all( self ):
+        r'''
+        Handles all iteration, solving, and final interpolation/extrapolation to the user-input radial grid.
+        
+        *TBD: add more details on math, assumptions here.*
+        
+        '''
 
         if self.verbose: print(f'>>> iterating to solve for final ADM quantities.')
         rho_adm0, P_adm0, S_adm0, Srr_adm0, a0, K0, alpha0 = self.iterate()
@@ -429,6 +560,15 @@ class ADMSolver:
 
     def get_final_profile( self ):
 
+        '''
+        Serves as the driver for ADMSolver.
+
+        Returns:
+            np.ndarray: Post-ADM, Eulerian stellar/ccsne profile (from MESA, KEPLER, GR1D...). 
+            Assumed to be in following column order: [radius, density, temperature, ye, sie, velocity, pressure, density (adm), momentum (adm), $S$ (adm), $S^r_r$ (adm)]
+
+        '''
+
         self.calculate_all() # this actually does the full pipeline!
 
         phb_profile = np.column_stack([
@@ -453,6 +593,8 @@ class piecewise:
     '''
         small python implementation of Jonah's quadradtic piecewise interpolation method that's in the main codebase;
         see monopole_gr/monopole_gr_base.hpp for a full reference and the original source code.
+
+        :meta private:
     '''
 
     def __init__(self, x0: np.ndarray, y):

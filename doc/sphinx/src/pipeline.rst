@@ -200,6 +200,8 @@ Progenitor pre-processing & i/o
 
 .. automodule:: progenitors
     :members:
+    :member-order: bysource
+    :math:
 
 
 .. Solving for ADM initial conditions
@@ -214,10 +216,12 @@ Converting to ``Phoebus`` input files
 
 .. automodule:: convert
     :members:
-
+    :member-order: bysource
+    :math:
 
 There are also a few helper modules that use `singularity-eos`_ that can be used to calculate specific internal energy and get bounds for the 
 equation of state in use:
 
 .. automodule:: seos
     :members:
+    :member-order: bysource

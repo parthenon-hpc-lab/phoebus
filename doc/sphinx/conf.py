@@ -30,6 +30,9 @@ extensions = [
     "sphinx.ext.napoleon",
 ]
 
+# ensuring return types are always inline (rather than a separate field) for numpy-style docstrings
+napoleon_use_rtype = False
+
 # adding mock imports so autodoc doesn't crash on external dependencies/libraries
 autodoc_mock_imports = [
     "numpy",

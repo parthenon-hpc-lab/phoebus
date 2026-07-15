@@ -8,6 +8,7 @@
     also contains some helper utilities for reading in GR1D time series data and bounce times.
         
     law. 16 jun 2026
+    :meta private:
 '''
 
 from astropy import constants as const
@@ -302,14 +303,14 @@ def interp_to_eulerian( prof: np.ndarray, factor = 4, use_drad = False, drad = 1
 
 def fixup_rad_vel( prof: np.ndarray, verbose = False ):
 
-    '''
+    r'''
     Applies a FLASH-style fixup (Couch et al. 2013...) to a stellar/ccsne profile. This includes:
         - Adjusting the radius to be cell-centered values (instead of edge)
         - Fixing the innermost zone of the velocity to be consistent with new radial values (all other primitives assumed piecewise const.)
     
     Args:
         prof (np.ndarray): Post-ADM, Eulerian stellar/ccsne profile (from MESA, KEPLER, GR1D...). 
-            Assumed to be in following column order: ['radius', 'density', 'temperature',  'ye', 'sie', 'velocity','pressure', 'density [ADM]', 'momentum [ADM]', 'S [ADM]', 'S^r_r [ADM]']
+            Assumed to be in following column order: [radius, density, temperature, ye, sie, velocity, pressure, density (adm), momentum (adm), $S$ (adm), $S^r_r$ (adm)]
         verbose (bool, optional): Enables command line output. Defaults to False.
 
     '''
@@ -413,7 +414,7 @@ def save_raw_profile( prof: np.ndarray, model_name: str, model_type: str, time =
 
 def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type = 'stellarcollapse', time = 0.0, OUTPATH = '', save_unconverted = True, save_info = True, verbose = False ):
 
-    '''
+    r'''
     Saves a processed, post-ADM, converted (code units) phoebus input profile to a ASCII- and numpy-readable file (with nice formatting). Also saves:
         - unconverted (cgs units) phoebus input profile (optional)
         - model info file with characteristic values, unit conversions, and progenitor + eos bounds (optional)
@@ -425,7 +426,7 @@ def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, EOS
     
     Args:
          prof (np.ndarray): Post-ADM, Eulerian stellar/ccsne profile (from MESA, KEPLER, GR1D...). 
-            Assumed to be in following column order: ['radius', 'density', 'temperature',  'ye', 'sie', 'velocity','pressure', 'density [ADM]', 'momentum [ADM]', 'S [ADM]', 'S^r_r [ADM]']
+            Assumed to be in following column order: [radius, density, temperature, ye, sie, velocity, pressure, density (adm), momentum (adm), $S$ (adm), $S^r_r$ (adm)]
         model_name (str): Model name.
         model_type (str): Model type (e.g. MESA, KEPLER, GR1D...).
         time (float, optional): Time elapsed since infall (in seconds). Default is 0 s, **recommended** for GR1D models.
@@ -482,8 +483,9 @@ def read_time_series( PATH: str ):
         PATH (str): Path to the run directory (should contain all GR1D output files).
 
     Returns:
-        dict: Time series data (key: time, value: quantity at that timestep).
-        list: Times that correspond to the keys in the full dictionary.
+        (tuple): tuple containing:
+            dict: Time series data (key: time, value: quantity at that timestep).
+            list: Times that correspond to the keys in the full dictionary.
     
     '''
     time_series_data = {}
@@ -519,21 +521,22 @@ def read_time_series( PATH: str ):
     return time_series_data, sorted(ordered_times)
 
 def find_nearest_time( target_time: float, times: set ):
-    '''Finds the time closest to the requested target time given a list of timesteps.
+    '''
+    Finds the time closest to the requested target time given a list of timesteps.
     
     Args:
         target_time (float): Desired time (in seconds) to search for.
         times (set): List or set of timesteps or keys to search through.
         
     Returns:
-
         float: Time or key nearest to the provided target time.
 
     '''
     return min(times, key=lambda t: abs(t - target_time))
 
 def get_tbounce( PATH: str ) -> float:
-    ''' Retrieves the time of bounce from the default GR1D output.
+    ''' 
+    Retrieves the time of bounce from the default GR1D output.
     
     Args:
         PATH (str): Path to the run directory (should contain all GR1D output files).

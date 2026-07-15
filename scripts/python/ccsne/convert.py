@@ -1,9 +1,11 @@
 '''
-refactor of the original convert.py that allows for conversion of phoebus profiles
-as a numpy array (instead of extra i/o with files), and also creates an output
-file with useful diagnostics/metrics about the model to help with *.pin file
-creation and provide reasonable floors/ceilings.
+    refactor of the original convert.py that allows for conversion of phoebus profiles
+    as a numpy array (instead of extra i/o with files), and also creates an output
+    file with useful diagnostics/metrics about the model to help with *.pin file
+    creation and provide reasonable floors/ceilings.
 
+    law. 30 jun 2026
+    :meta private:
 '''
 
 import os
@@ -30,13 +32,14 @@ def convert_PHB_profile(prof: np.ndarray):
 
     Args:
         prof (np.ndarray): Post-ADM, Eulerian stellar/ccsne profile (from MESA, KEPLER, GR1D...). 
-            Assumed to be in following column order: ['radius', 'density', 'temperature',  'ye', 'sie', 'velocity','pressure', 'density [ADM]', 'momentum [ADM]', 'S [ADM]', 'S^r_r [ADM]']
+            Assumed to be in following column order: [radius, density, temperature, ye, sie, velocity, pressure, density (adm), momentum (adm), $S$ (adm), $S^r_r$ (adm)]
 
     Returns:
-        np.ndarray: The original profile with all primitive and ADM quantities converted to code units.
-        float: Central density of the profile.
-        float: Characteristic mass of the profile.
-        float: Characteristic radius of the profile.
+        (tuple): tuple containing:
+            np.ndarray: The original profile with all primitive and ADM quantities converted to code units.
+            float: Central density of the profile.
+            float: Characteristic mass of the profile.
+            float: Characteristic radius of the profile.
     '''
 
     # the input profile has the following columns:
