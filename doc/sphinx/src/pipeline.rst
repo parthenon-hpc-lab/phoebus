@@ -235,6 +235,30 @@ Documentation
 This entire pipeline can be used as a "black-box" process. However, there are many functions that may be helpful for detailed analysis, 
 processing, progenitor I/O, troubleshooting, and more. Detailed documentation for all classes, methods, and functions can be found below.
 
+
+Progenitor pre-processing & i/o
+`````````````````````````````````
+
 .. automodule:: ccsne.progenitor
-    :caption: Progenitor Processing
+    :members:
+
+
+Solving for ADM initial conditions
+``````````````````````````````````
+.. check this at some point...
+.. autoclass:: ccsne.adm.ADMSolver
+    :members:
+
+
+Converting to ``Phoebus`` input files
+`````````````````````````````````````
+
+.. automodule:: ccsne.convert
+    :members:
+
+
+There are also a few helper modules that use `singularity-eos`_ that can be used to calculate specific internal energy and get bounds for the 
+equation of state in use:
+
+.. automodule:: ccsne.seos
     :members:
