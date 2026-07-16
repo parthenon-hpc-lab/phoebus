@@ -16,8 +16,9 @@ def calculate_eos_energy_stellarcollapse(rho: np.ndarray, T: np.ndarray, ye: np.
 
     Returns:
         (tuple): tuple containing:
-            np.ndarray: Specific internal energy of the profile.
-            np.ndarray: Energy density of the profile.
+
+            eps (np.ndarray): Specific internal energy of the profile.
+            u (np.ndarray): Energy density of the profile.
 
     '''
 
@@ -48,8 +49,9 @@ def calculate_eos_energy_helmholtz(rho: np.ndarray, T: np.ndarray, abar: np.ndar
 
     Returns:
         (tuple): tuple containing:
-            np.ndarray: Specific internal energy of the profile.
-            np.ndarray: Energy density of the profile.
+        
+            eps (np.ndarray): Specific internal energy of the profile.
+            u (np.ndarray): Energy density of the profile.
 
     '''
         

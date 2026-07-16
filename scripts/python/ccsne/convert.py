@@ -27,8 +27,8 @@ def convert_PHB_profile(prof: np.ndarray):
     Converts a post-ADM stellar/ccsne profile to a ``phoebus``-readable input file in code (phb) units. 
     Also calculates and provides the central density, along with characteristic mass and radius as given by
 
-        $$M_0 = \rho_c^{-1/2} c^3 G^{-3/2}$$
-        $$R_0 = G M_0 c^{-2}$$
+    - $M_0 = \rho_c^{-1/2} c^3 G^{-3/2}$
+    - $R_0 = G M_0 c^{-2}$
 
     Args:
         prof (np.ndarray): Post-ADM, Eulerian stellar/ccsne profile (from MESA, KEPLER, GR1D...). 
@@ -36,10 +36,11 @@ def convert_PHB_profile(prof: np.ndarray):
 
     Returns:
         (tuple): tuple containing:
-            np.ndarray: The original profile with all primitive and ADM quantities converted to code units.
-            float: Central density of the profile.
-            float: Characteristic mass of the profile.
-            float: Characteristic radius of the profile.
+        
+            prof (np.ndarray): The original profile with all primitive and ADM quantities converted to code units.
+            rhoc (float): Central density of the profile.
+            M0 (float): Characteristic mass of the profile.
+            R0 (float): Characteristic radius of the profile.
     '''
 
     # the input profile has the following columns:
@@ -75,13 +76,13 @@ def convert_PHB_profile(prof: np.ndarray):
 def make_info_file( rhoc: float, M0: float, R0: float, prof_conv: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type='stellarcollapse', OUTPATH='') -> None:
     '''
     Generates and outputs a summary/info file for a post-ADM, post unit conversion stellar/ccsne progenitor profile, including:
-        - characteristic values used to convert to code units, 
-        - useful length scales for the core-collapse problem, 
-        - bounds of the progenitor profile and equation of state, and
-        - conversion factors to convert between cgs and code (phb) units.
 
-    This file is ASCII- and numpy-readable for ease of use when conducting post-simulation data analysis.
-        e.g. `np.loadtxt('s15.0_mesa.info', usecols=0)`
+    - characteristic values used to convert to code units, 
+    - useful length scales for the core-collapse problem, 
+    - bounds of the progenitor profile and equation of state, and
+    - conversion factors to convert between cgs and code (phb) units.
+
+    This file is ASCII- and numpy-readable for ease of use when conducting post-simulation data analysis, e.g. ``np.loadtxt('s15.0_mesa.info', usecols=0)``
 
     File naming convention is `(model_name)_(model_type).info`.
 

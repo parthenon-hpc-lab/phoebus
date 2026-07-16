@@ -205,19 +205,21 @@ def wmavg( data: np.ndarray, n=1, exp=1, use_inverse=True, avg_edges=True, verbo
 
     r'''
     Takes a weighted moving average of an array, using either a traditional or inverse method.
-        $w_i = i^e$ (traditional)
-        $w_i = \frac{1}{i^e}$ (inverse)
+        
+    1. $w_i = i^e$ (traditional)
+    2. $w_i = \frac{1}{i^e}$ (inverse)
 
-    for $i = 1...n$ and exponent $e$. Weights are applied to the data in the array from indices (j - n)...(j + n) so that the n elements to the left and right of the central value at index j are weighted accordingly and applied to the average.
+    for $i = 1...n$ and exponent $e$. Weights are applied to the data in the array from indices $(j - n) \ldots (j + n)$ so that the $n$ elements to the left and right of the central value at index j are weighted accordingly and applied to the average.
     The central value $a$ is weighted at one. So for some central value $a$, we find
-        $a_{wma} = \sum_{i = 1}^{n} x_i w_i \cdot (\sum_{i = 1}^{n} w_i)^{-1}
+        
+    $$a_{wma} = \sum_{i = 1}^{n} x_i w_i \cdot (\sum_{i = 1}^{n} w_i)^{-1}$$
 
     Args:
         data (np.ndarray): The array to be averaged.
-        n (int, optional): The averaging `window`. For some central index j, averaging will occur from indices (j - n)...(j + n). Default is 1.
+        n (int, optional): The averaging `window`. For some central index j, averaging will occur from indices $(j - n) \ldots (j + n)$. Default is 1.
         exp (int, optional): The exponent to raise each weight to. Default is 1.
         use_inverse (bool, optional): Enables the use of the inverse weighting method. Defaults to True.
-        avg_edges (bool, optional): Enables a reduced weighted mean average on the values at indices 0...n and (m - n)...m for an array of size m. Default is True, 
+        avg_edges (bool, optional): Enables a reduced weighted mean average on the values at indices $0 \ldots n$ and $(m - n) \ldots m$ for an array of size m. Default is True, 
             recommended to avoid edge effects or discontinuities in data.
         verbose (bool, optional): Enables command line output. Defaults to False.
 
@@ -304,10 +306,11 @@ def interp_to_eulerian( prof: np.ndarray, factor = 4, use_drad = False, drad = 1
 def fixup_rad_vel( prof: np.ndarray, verbose = False ):
 
     r'''
-    Applies a FLASH-style fixup (Couch et al. 2013...) to a stellar/ccsne profile. This includes:
-        - Adjusting the radius to be cell-centered values (instead of edge)
-        - Fixing the innermost zone of the velocity to be consistent with new radial values (all other primitives assumed piecewise const.)
-    
+    Applies a FLASH-style fixup (e.g. Couch et al. 2013...) to a stellar/ccsne profile. This includes:
+
+    - Adjusting the radius to be cell-centered values (instead of edge)
+    - Fixing the innermost zone of the velocity to be consistent with new radial values (all other primitives assumed piecewise const.)
+
     Args:
         prof (np.ndarray): Post-ADM, Eulerian stellar/ccsne profile (from MESA, KEPLER, GR1D...). 
             Assumed to be in following column order: [radius, density, temperature, ye, sie, velocity, pressure, density (adm), momentum (adm), $S$ (adm), $S^r_r$ (adm)]
@@ -412,18 +415,20 @@ def save_raw_profile( prof: np.ndarray, model_name: str, model_type: str, time =
     if verbose: print(f'>>> saved raw profile from {model_type.upper()} model `{model_name}` at time {time:.4f} s to {OUTPATH}.')
 
 
-def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type = 'stellarcollapse', time = 0.0, OUTPATH = '', save_unconverted = True, save_info = True, verbose = False ):
+def save_ADM_profile( prof: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type = 'stellarcollapse', time = 0.0, OUTPATH = '', save_unconverted = True, save_info = True, verbose = False ):
 
     r'''
     Saves a processed, post-ADM, converted (code units) ``phoebus`` input profile to a ASCII- and numpy-readable file (with nice formatting). Also saves:
-        - unconverted (cgs units) ``phoebus`` input profile (optional)
-        - model info file with characteristic values, unit conversions, and progenitor + eos bounds (optional)
+       
+    - unconverted (cgs units) ``phoebus`` input profile (optional)
+    - model info file with characteristic values, unit conversions, and progenitor + eos bounds (optional)
 
     File naming conventions are:
-        - `(model_name)_(model_type)_adm_converted.prof`.
-        - `(model_name)_(model_type)_adm.prof`.
-        - `(model_name)_(model_type).info`.
     
+    - `(model_name)_(model_type)_adm_converted.prof`.
+    - `(model_name)_(model_type)_adm.prof`.
+    - `(model_name)_(model_type).info`.
+
     Args:
          prof (np.ndarray): Post-ADM, Eulerian stellar/ccsne profile (from MESA, KEPLER, GR1D...). 
             Assumed to be in following column order: [radius, density, temperature, ye, sie, velocity, pressure, density (adm), momentum (adm), $S$ (adm), $S^r_r$ (adm)]
@@ -446,7 +451,7 @@ def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, EOS
     if save_unconverted:
         np.savetxt(
             os.path.join(OUTPATH, f'{model_name}_{model_type.lower()}_adm.prof'),
-            profile,
+            prof,
             delimiter   ='\t',
             fmt         = '%20.15e',
             header      = f'primitives + ADM for {model_type.upper()} profile from model `{model_name}`at time {time:.4f} s.\n{fmt_header % tup_header}'
@@ -455,7 +460,7 @@ def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, EOS
 
 
     # converting the actual profile to phoebus code units
-    profile_conv, rhoc, M0, R0 = convert_PHB_profile( profile )
+    prof_conv, rhoc, M0, R0 = convert_PHB_profile( prof )
 
     # creates a summary/info file with useful conversions and progenitor bounds
     if save_info:
@@ -464,7 +469,7 @@ def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, EOS
     # saves the converted profile
     np.savetxt(
         os.path.join(OUTPATH, f'{model_name}_{model_type.lower()}_adm_converted.prof'),
-        profile_conv,
+        prof_conv,
         delimiter   ='\t',
         fmt         = '%20.15e',
         header      = f'converted primitives + ADM for {model_type.upper()} profile from model `{model_name}` at time {time:.4f} s.\n{fmt_header % tup_header_conv}'
@@ -484,8 +489,9 @@ def read_time_series( PATH: str ):
 
     Returns:
         (tuple): tuple containing:
-            dict: Time series data (key: time, value: quantity at that timestep).
-            list: Times that correspond to the keys in the full dictionary.
+    
+            data (dict): Time series data (key: time, value: quantity at that timestep).
+            times (list): Times that correspond to the keys in the full dictionary.
     
     '''
     time_series_data = {}

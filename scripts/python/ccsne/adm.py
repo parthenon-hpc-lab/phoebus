@@ -35,13 +35,12 @@ class ADMSolver:
     Solves for the necessary GR quantities needed to initialize monopole GR in ``phoebus`` using the ADM (Arnowitt-Deser-Misner) formalism.
 
     For the full details of the methodologies used, refer to 
-        - ch. XX.X of `Introduction to 3+1 Numerical Relativity <https://academic.oup.com/book/9640>`_,
-        - the ``phoebus`` instrument paper; `Barker et al. 2024 <10.48550/arXiv.2410.09146>`_, and   
-        - the header file for monopole GR in the main ``phoebus`` codebase; ``src/monopole_gr/monopole_gr.hpp``.
+    - ch. 5.2 (Gravity) of Mariam Gogilashvili's thesis (Gogilashvili 2024, FSU); **recommended** as this contains full derivations,
+    - `Introduction to 3+1 Numerical Relativity <https://academic.oup.com/book/9640>`_ for a detailed reference on 3 + 1 formalisms,
+    - the ``phoebus`` instrument paper; `Barker et al. 2024 <10.48550/arXiv.2410.09146>`_, and   
+    - the header file for monopole GR in the main ``phoebus`` codebase; ``src/monopole_gr/monopole_gr.hpp``.
 
-    *add more detailed references, methods, assumptions here as needed!*
-
-    A refactor of Mariam Gogilashvili's original GR_Solver class. Full derivations can also be found in her thesis (Gogilashvili 2024).
+    A refactor of Mariam Gogilashvili's original GR_Solver class.
 
     '''
 
@@ -51,7 +50,7 @@ class ADMSolver:
         Constructor for the ADMSolver class.
 
         Args:
-            problem (str): Which desired ...
+            problem (str): Which problem you want to generate ``phoebus`` input for. Options are 'StellarTable', 'TOV' (not implemented), and 'homologous' (not implemented).
             DATPATH (str): Desired directory to save file(s) in.
             EOSPATH (str): Path and filename pointing to the *.h5 tabulated equation of state.
             eos_type (str, optional): The type of tabulated EOS. Options are 'StellarCollapse' or 'Helmholtz'; default is 'StellarCollapse'
@@ -148,8 +147,8 @@ class ADMSolver:
         
         '''
         Creates a new radial grid based on initialization parameters (`use_def_rad`, `use_*_cut`, `use_custom`) and generates
-        interpolators for all primitive quantities. Also recalculates specific internal energy using ``Singularity-EOS`` to be consistent with the equation 
-        of state that will be used in ``phoebus``.
+        interpolators for all primitive quantities. Also recalculates specific internal energy using ``Singularity-EOS`` to 
+        be consistent with the equation of state that will be used in ``phoebus``.
 
         Args:
             use_def_rad (bool, optional): If enabled, uses the original radial grid of the input progenitor profile.
@@ -167,11 +166,11 @@ class ADMSolver:
             prof = np.loadtxt(self.DATPATH)
 
         elif self.problem == 'tov':
-            # come back to this if needed
+            # come back to this
             pass
 
         elif self.problem == 'homologous':
-            # come back to this if needed
+            # come back to this
             pass
 
         # we need to preserve the original data from the profile to calculate lapse functions, etc.
@@ -226,7 +225,30 @@ class ADMSolver:
         r'''
         Using a spherically symmetric metric, calculates the values of $\alpha^2$, $a^2$ in the weak-field (e.g. Newtonian) limit.
 
-        *TBD: add more details on math, assumptions here.*
+        Beginnning with our ADM metric in natural units (s.t. $c = 1$), s.t.
+        
+         $$ds^2 = (-\alpha^2 +\ beta_i \beta^i) dt^2 + 2 \beta_i dt dx^i + \gamma_{ij} dx^i dx^j$$
+        
+         and taking a sph. symm. ansatz at $t=0$ (s.t. our shift $\beta = 0$), we write the metric as
+
+        - $ds^2 = -\alpha^2 dt^2 + a^2 dr^2 + b^2 r^2 dOmega^2$
+        - $ds^2 = -e^{2 \phi}dt^2 +  e^{-2 \phi}dr^2 + r^2 d \Omega^2$ 
+
+        In the weak-field limit (e.g. when gravitational potential $\phi \rightarrow 0$), we can take a small-x Taylor expansion 
+        to solve for $a$, $\alpha$, s.t.
+
+        - $\alpha^2 = e^{2 \phi} \approx 1 + 2 \phi$
+        - $a^2 = e^{-2 \phi} \approx 1 + 2r \partial \phi$ (recall $-\phi = r \partial \phi$)
+
+        given a symm. spherical gravitational potential 
+
+        $$ \phi(r) = -\frac{2 \pi G}{c^2} \rho r^2 $$.
+
+        Returns:
+            (tuple): tuple containing:
+
+                alpha2 (np.ndarray): Lapse function ($\alpha$) squared, weak-field approximation.
+                a2 (np.ndarray): Metric component ($a$) squared, weak-field approximation.
 
         '''
 
@@ -259,10 +281,26 @@ class ADMSolver:
     def calculate_initial_ADM( self ):
 
         r'''
-        Calculates initial values for ADM density, momentum, and stress tensor (??) given the Newtonian values of $\alpha^2$, $a^2$.
+        Calculates initial values for ADM density, momentum, and stress tensor given the Newtonian values of $\alpha^2$, $a^2$.
 
-        *TBD: add more details on math, assumptions here.*
-        
+        Given our 3-metric , s.t.
+
+        $$ \gamma^2 = ( 1 - (v^2 + \omega^2\r^2))^{-1} $$
+
+        We find inital values for ADM quantities as given by
+
+        - $\rho^{(ADM)} = \rho \alpha^2 \gamma^2 $
+        - $P^{(ADM)} = \alpha \gamma^2 (\rho P)^2 \omega$
+        - $S^{(ADM)} = (\alpha^2 \gamma^2 - 1) \rho^2 + (\alpha^2 \gamma^2 + 2)P$
+
+        Also ref. Eqs. 5.10-12 in Gogilashvili 2024 for further relation to $T^{\mu \nu}$.
+
+        Returns:
+            (tuple): tuple containing:
+    
+                rho_adm (np.ndarray): Initial ADM density, on the (new) radial grid.
+                P_adm (np.ndarray): Initial ADM momentum, on the (new) radial grid.
+                S_adm (np.ndarray): Initial ADM stress tensor, on the (new) radial grid.
         '''
 
         # 3-metric??
@@ -298,10 +336,21 @@ class ADMSolver:
     def calculate_metric( self, rho_adm: np.ndarray, P_adm: np.ndarray, S_adm: np.ndarray ):
 
         r'''
-        Calculates ...
-
-        *TBD: add more details on math, assumptions here.*
+        Calculates the components $a$ (metric) and $K_r^r$ (extrinsic curvature) using the Einstein constraint equations 
+        with a Hamiltonian constraint (Barker et al. 2024, eqs. 16-17) and the boundary conditions as detailed in eqs. 23-28.
         
+        Args:
+            rho_adm (np.ndarray): ADM density, on the (new) radial grid.
+            P_adm (np.ndarray): ADM momentum, on the (new) radial grid.
+            S_adm (np.ndarray): ADM stress tensor, on the (new) radial grid.
+
+        Returns:
+            (tuple): tuple containing:
+    
+                a (np.ndarray): Metric component ($a$).
+                K (np.ndarray): Extrinsic curvature ($K_r^r$).
+                alpha (np.ndarray): Lapse function ($\alpha$).
+                beta (np.ndarray): Shift function ($\beta$).
         '''
 
         # interpolated quantities
@@ -436,9 +485,21 @@ class ADMSolver:
     def calculate_ADM( self, a, alpha, beta ):
 
         r'''
-        Calculates ...
+        Calculates spherically symmetric, time-dependent ADM density, momentum, and stress tensor using full matrix equations and 4-metric $g_{\mu \nu}$.
+        Refer to Appendix A of Barker et al. 2024, along with ch. 5.2.6 of Gogilashvili 2024 for full derivations.
         
-        *TBD: add more details on math, assumptions here.*
+        Args:
+            a (np.ndarray): Metric component ($a$).
+            alpha (np.ndarray): Lapse function ($\alpha$).
+            beta (np.ndarray): Shift function ($\beta$).
+
+        Returns:
+            (tuple): tuple containing:
+
+                rho_adm (np.ndarray): ADM density.
+                P_adm (np.ndarray): ADM momentum.
+                S_adm (np.ndarray): ADM stress tensor, trace.
+                Srr_adm (np.ndarray): ADM stress tensor.
         
         '''
 
@@ -483,10 +544,20 @@ class ADMSolver:
     def iterate( self ):
 
         r'''
-        Iterates through the full ADM solver pipeline until we find that $d \alpha < \epsilon$, where $\epsilon$ is the threshold value
-        set at initialization by `dalpha_eps`.
+        Iterates through the full ADM solver pipeline until we find that $d \alpha < \epsilon$ after $n$ iterations, 
+        where $\epsilon$ is the threshold value set at initialization by ``dalpha_eps`` and $n \less N$, where $N$ is the 
+        maximum number of iterations as set by the user at initialization.
         
-        *TBD: add more details on math, assumptions here.*
+        Returns:
+            (tuple): tuple containing:
+
+                rho_adm (np.ndarray): Final ADM density.
+                P_adm (np.ndarray): Final ADM momentum.
+                S_adm (np.ndarray): Final ADM stress tensor, trace.
+                Srr_adm (np.ndarray): Final ADM stress tensor.
+                a (np.ndarray): Final metric component ($a$).
+                K (np.ndarray): Final extrinsic curvature ($K_r^r$).
+                alpha (np.ndarray): Final lapse function ($\alpha$).
         
         '''
         
@@ -500,10 +571,9 @@ class ADMSolver:
             a, K, alpha, beta = self.calculate_metric(rho_adm, P_adm, S_adm)
 
             if self.verbose: # TODO: add a more informative print statement here
-                # print(f'{i: 2d} {np.max(abs(alpha)): 4.5e} {np.max(abs(alpha_prev - alpha)): 4.5e}')
                 print( f'\titeration {i:2d}\talpha = {np.max(abs(alpha)):4.5e}\tdalpha = {np.max(abs(alpha_prev - alpha)):4.5e}')
 
-            # default criteria is 1e-12, loosening to 6e-12 works as well.
+            # default criteria is 1e-12, loosening to 6e-12 is robust as well.
             if np.max(abs(alpha_prev - alpha)) < self.dalpha_eps:
                 break
 
@@ -519,9 +589,6 @@ class ADMSolver:
     def calculate_all( self ):
         r'''
         Handles all iteration, solving, and final interpolation/extrapolation to the user-input radial grid.
-        
-        *TBD: add more details on math, assumptions here.*
-        
         '''
 
         if self.verbose: print(f'>>> iterating to solve for final ADM quantities.')

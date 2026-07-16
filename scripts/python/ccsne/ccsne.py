@@ -4,6 +4,7 @@
     get a raw profile, phoebus profile (cgs, optional), and phoebus profile (code units).
 
     law. 23 jun 2026
+    :meta private:
 '''
 
 # useful i/o things
