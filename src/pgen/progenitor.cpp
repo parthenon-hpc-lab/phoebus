@@ -24,7 +24,6 @@
 #include "progenitor/progenitordata.hpp"
 #include <parthenon/package.hpp>
 #include <utils/error_checking.hpp>
-// #include "phoebus_utils/unit_conversions.hpp" // will this work or do i need to fix the cmakelists?
 
 using DataBox = Spiner::DataBox<Real>;
 
@@ -80,7 +79,6 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
   auto mass_density_dev = progenitor_pkg->Param<DataBox>("mass_density_dev");
   auto Ye_dev = progenitor_pkg->Param<DataBox>("Ye_dev");
   auto velocity_dev = progenitor_pkg->Param<DataBox>("velocity_dev");
-  auto temp_dev = progenitor_pkg->Param<DataBox>("temp_dev");
   auto pressure_dev = progenitor_pkg->Param<DataBox>("pressure_dev");
 
   // MonopoleGR
@@ -133,11 +131,12 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
           lambda[0] = v(iye, k, j, i);
         }
 
-        // we now get sie from rho, T ( more EOS conscious method) 
-        const Real sie_ = eos.InternalEnergyFromDensityTemperature( (mass_density_dev.interpToReal(r)), temp_dev.interpToReal(r), lambda );
-        const Real u_ = sie_ * mass_density_dev.interpToReal(r);
-        const Real T_ = temp_dev.interpToReal(r);
-        const Real P_ = eos.PressureFromDensityTemperature( (mass_density_dev.interpToReal(r)), temp_dev.interpToReal(r), lambda );
+        const Real u = phoebus::energy_from_rho_P(eos, mass_density_dev.interpToReal(r),
+                                                  pressure_dev.interpToReal(r), emin,
+                                                  emax, lambda[0]);
+        const Real sie = u / mass_density_dev.interpToReal(r);
+        const Real T = eos.TemperatureFromDensityInternalEnergy(
+            mass_density_dev.interpToReal(r), sie, lambda);
 
         Real vel_vec_in[3] = {0};
         Real vel_vec_out[3] = {0};
@@ -150,9 +149,9 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
 
         v(irho, k, j, i) = mass_density_dev.interpToReal(r);
         SPACELOOP(d) { v(ivlo + d, k, j, i) = vel_vec_out[d]; }
-        v(iprs, k, j, i) = P_; // pressure from EOS
-        v(ieng, k, j, i) = u_;
-        v(itmp, k, j, i) = T_;
+        v(iprs, k, j, i) = pressure_dev.interpToReal(r);
+        v(ieng, k, j, i) = u;
+        v(itmp, k, j, i) = T;
         v(igm1, k, j, i) = eos.BulkModulusFromDensityTemperature(
                                v(irho, k, j, i), v(itmp, k, j, i), lambda) /
                            v(iprs, k, j, i);
