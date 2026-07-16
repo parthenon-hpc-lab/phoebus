@@ -8,7 +8,9 @@
         TODO: ask brandon + devs about TOV and homologous cases, could reproduce if needed?
     
     law. 16 jun 2026
+
     :meta private:
+
 '''
 
 from seos import *
@@ -35,6 +37,7 @@ class ADMSolver:
     Solves for the necessary GR quantities needed to initialize monopole GR in ``phoebus`` using the ADM (Arnowitt-Deser-Misner) formalism.
 
     For the full details of the methodologies used, refer to 
+
     - ch. 5.2 (Gravity) of Mariam Gogilashvili's thesis (Gogilashvili 2024, FSU); **recommended** as this contains full derivations,
     - `Introduction to 3+1 Numerical Relativity <https://academic.oup.com/book/9640>`_ for a detailed reference on 3 + 1 formalisms,
     - the ``phoebus`` instrument paper; `Barker et al. 2024 <10.48550/arXiv.2410.09146>`_, and   
@@ -44,7 +47,7 @@ class ADMSolver:
 
     '''
 
-    def __init__(self, problem: str, DATPATH: str, EOSPATH: str, eos_type = 'stellarcollapse', use_def_rad = False, use_rho_cut = False, rho_cut = 2.0e3, use_rad_cut = False, rad_cut = 1e9, use_custom = False, custom_min = 5e5, custom_max = 5e9, zones=10000, interp_method = 'cubic', bc_type = 'clamped', interp_method_adm = 'piecewise', num_iterations = 100, dalpha_eps = 1.0e-12, extrapolate = True, verbose = True):
+    def __init__(self, problem: str, DATPATH: str, EOSPATH: str, eos_type: str = 'stellarcollapse', use_def_rad: bool = False, use_rho_cut: bool = False, rho_cut: float = 2.0e3, use_rad_cut: bool = False, rad_cut: float = 1e9, use_custom: bool = False, custom_min: float = 5e5, custom_max: float = 5e9, zones: int = 10000, interp_method: str = 'cubic', bc_type: str = 'clamped', interp_method_adm: str = 'piecewise', num_iterations: int = 100, dalpha_eps: float = 1.0e-12, extrapolate: bool = True, verbose: bool = True):
         
         r'''
         Constructor for the ADMSolver class.
@@ -231,18 +234,18 @@ class ADMSolver:
         
          and taking a sph. symm. ansatz at $t=0$ (s.t. our shift $\beta = 0$), we write the metric as
 
-        - $ds^2 = -\alpha^2 dt^2 + a^2 dr^2 + b^2 r^2 dOmega^2$
-        - $ds^2 = -e^{2 \phi}dt^2 +  e^{-2 \phi}dr^2 + r^2 d \Omega^2$ 
+        - $ds^2 = -\alpha^2 dt^2 + a^2 dr^2 + b^2 r^2 d \Omega^2$
+        - $ds^2 = -e^{2 \varphi}dt^2 +  e^{-2 \varphi}dr^2 + r^2 d \Omega^2$ 
 
-        In the weak-field limit (e.g. when gravitational potential $\phi \rightarrow 0$), we can take a small-x Taylor expansion 
+        In the weak-field limit (e.g. when gravitational potential $\varphi \rightarrow 0$), we can take a small-x Taylor expansion 
         to solve for $a$, $\alpha$, s.t.
 
-        - $\alpha^2 = e^{2 \phi} \approx 1 + 2 \phi$
-        - $a^2 = e^{-2 \phi} \approx 1 + 2r \partial \phi$ (recall $-\phi = r \partial \phi$)
+        - $\alpha^2 = e^{2 \varphi} \approx 1 + 2 \varphi$, and
+        - $a^2 = e^{-2 \varphi} \approx 1 + 2r \partial \varphi$,
 
-        given a symm. spherical gravitational potential 
+        recalling that $\varphi = -r \partial \varphi$ and given a symm. spherical gravitational potential, s.t.
 
-        $$ \phi(r) = -\frac{2 \pi G}{c^2} \rho r^2 $$.
+        $$ \varphi = -\frac{2 \pi G}{c^2} \rho r^2 $$.
 
         Returns:
             (tuple): tuple containing:
@@ -495,7 +498,7 @@ class ADMSolver:
 
         Returns:
             (tuple): tuple containing:
-
+            
                 rho_adm (np.ndarray): ADM density.
                 P_adm (np.ndarray): ADM momentum.
                 S_adm (np.ndarray): ADM stress tensor, trace.
@@ -550,7 +553,7 @@ class ADMSolver:
         
         Returns:
             (tuple): tuple containing:
-
+            
                 rho_adm (np.ndarray): Final ADM density.
                 P_adm (np.ndarray): Final ADM momentum.
                 S_adm (np.ndarray): Final ADM stress tensor, trace.
@@ -659,6 +662,7 @@ class piecewise:
         see monopole_gr/monopole_gr_base.hpp for a full reference and the original source code.
 
         :meta private:
+
     '''
 
     def __init__(self, x0: np.ndarray, y):

@@ -70,7 +70,7 @@ def calculate_eos_energy_helmholtz(rho: np.ndarray, T: np.ndarray, abar: np.ndar
     return eps, u
 
 
-def get_eos_bounds( filename: str, eos_type='stellarcollapse') -> np.ndarray:
+def get_eos_bounds( filename: str, eos_type: str = 'stellarcollapse') -> np.ndarray:
 
     '''
     Calculates the upper and lower bounds (in density, temperature, specific internal energy, and electron fraction)

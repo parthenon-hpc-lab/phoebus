@@ -8,7 +8,9 @@
     also contains some helper utilities for reading in GR1D time series data and bounce times.
         
     law. 16 jun 2026
+
     :meta private:
+
 '''
 
 from astropy import constants as const
@@ -23,7 +25,7 @@ from scipy.interpolate import CubicSpline as cubic
 from convert import convert_PHB_profile, make_info_file
 
 
-def get_MESA_profile( PATH: str, header=4, verbose=False ) -> np.ndarray:
+def get_MESA_profile( PATH: str, header: int = 4, verbose: bool = False ) -> np.ndarray:
  
     '''
     Retrieves a MESA stellar evolution profile.
@@ -70,7 +72,7 @@ def get_MESA_profile( PATH: str, header=4, verbose=False ) -> np.ndarray:
     return profnp
 
 
-def get_KEPLER_profile( PATH: str, header=1, verbose=False ) -> np.ndarray:
+def get_KEPLER_profile( PATH: str, header: int = 1, verbose: bool = False ) -> np.ndarray:
  
     '''
     Retrieves a KEPLER-style stellar evolution profile.
@@ -115,7 +117,7 @@ def get_KEPLER_profile( PATH: str, header=1, verbose=False ) -> np.ndarray:
     return profnp
 
 
-def get_GR1D_profile( PATH: str, at_bounce = True, time = -1.0, verbose = False ) -> np.ndarray:
+def get_GR1D_profile( PATH: str, at_bounce: bool = True, time: float = -1.0, verbose: bool = False ) -> np.ndarray:
      
     '''
     Retrieves a GR1D explosion profile.
@@ -201,7 +203,7 @@ def get_GR1D_profile( PATH: str, at_bounce = True, time = -1.0, verbose = False 
 ### ------------ data handling utilities for going from lagrangian-style grids (most 1d codes, mass coord) to eulerian resolution for phoebus
 
 # takes a weighted moving average of data, intended for smoothing of velocity profiles after subsampling...
-def wmavg( data: np.ndarray, n=1, exp=1, use_inverse=True, avg_edges=True, verbose=False):
+def wmavg( data: np.ndarray, n: int = 1 , exp: int = 1, use_inverse: bool = True, avg_edges: bool = True, verbose: bool = False):
 
     r'''
     Takes a weighted moving average of an array, using either a traditional or inverse method.
@@ -255,7 +257,7 @@ def wmavg( data: np.ndarray, n=1, exp=1, use_inverse=True, avg_edges=True, verbo
         
     return datavg
 
-def interp_to_eulerian( prof: np.ndarray, factor = 4, use_drad = False, drad = 1e7, use_uniform = False, unif_max = 5e9):
+def interp_to_eulerian( prof: np.ndarray, factor: int = 4, use_drad: bool = False, drad: float = 1e7, use_uniform: bool = False, unif_max: float = 5e9):
 
     '''
     Increases the radial resolution of a Lagrangian (mass coordinate) input profile to an Eulerian-appropriate radial resolution.
@@ -303,7 +305,7 @@ def interp_to_eulerian( prof: np.ndarray, factor = 4, use_drad = False, drad = 1
     return prof_interp
 
 
-def fixup_rad_vel( prof: np.ndarray, verbose = False ):
+def fixup_rad_vel( prof: np.ndarray, verbose: bool = False ):
 
     r'''
     Applies a FLASH-style fixup (e.g. Couch et al. 2013...) to a stellar/ccsne profile. This includes:
@@ -383,7 +385,7 @@ def subsample_depr( x, radius_cm, factor=4, verbose=False, get_factor=False, uni
 ### ---------------------------------------------------------------
 ### ------------ handles saving profiles to either adm.py input or phoebus style input (in physical and code units)
 
-def save_raw_profile( prof: np.ndarray, model_name: str, model_type: str, time = 0.0, OUTPATH = '', verbose = False ):
+def save_raw_profile( prof: np.ndarray, model_name: str, model_type: str, time: float = 0.0, OUTPATH: str = '', verbose: bool = False ):
     
     '''
     Saves a processed (pre-ADM) stellar/ccsne profile to a ASCII- and numpy-readable file (with nice formatting).
@@ -415,7 +417,7 @@ def save_raw_profile( prof: np.ndarray, model_name: str, model_type: str, time =
     if verbose: print(f'>>> saved raw profile from {model_type.upper()} model `{model_name}` at time {time:.4f} s to {OUTPATH}.')
 
 
-def save_ADM_profile( prof: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type = 'stellarcollapse', time = 0.0, OUTPATH = '', save_unconverted = True, save_info = True, verbose = False ):
+def save_ADM_profile( prof: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type: str = 'stellarcollapse', time: float = 0.0, OUTPATH: str = '', save_unconverted: bool = True, save_info: bool = True, verbose: bool = False ):
 
     r'''
     Saves a processed, post-ADM, converted (code units) ``phoebus`` input profile to a ASCII- and numpy-readable file (with nice formatting). Also saves:

@@ -5,7 +5,9 @@
     creation and provide reasonable floors/ceilings.
 
     law. 30 jun 2026
+
     :meta private:
+
 '''
 
 import os
@@ -73,7 +75,7 @@ def convert_PHB_profile(prof: np.ndarray):
     return prof_conv, rhoc, M0, R0
 
 
-def make_info_file( rhoc: float, M0: float, R0: float, prof_conv: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type='stellarcollapse', OUTPATH='') -> None:
+def make_info_file( rhoc: float, M0: float, R0: float, prof_conv: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type: str ='stellarcollapse', OUTPATH: str ='') -> None:
     '''
     Generates and outputs a summary/info file for a post-ADM, post unit conversion stellar/ccsne progenitor profile, including:
 
