@@ -260,10 +260,10 @@ def interp_to_eulerian( prof: np.ndarray, factor = 4, use_drad = False, drad = 1
 
     Args:
         prof (np.ndarray): Original Lagrangian stellar/ccsne profile (from MESA, KEPLER, GR1D...).
-        factor (int): Factor to increase radial resolution by. Default is 4, **not recommended** for `phoebus`.
+        factor (int): Factor to increase radial resolution by. Default is 4, **not recommended** for ``phoebus``.
         use_drad (bool, optional): Enables the use of a specific radial spacing. Default is False.
         drad (float, optional): If use_drad enabled, specifices desired minimum radial spacing (in cm). Default is 1.0e7 cm
-        use_uniform (bool, optional): Creates a uniformly spaced grid over the full radial domain. Default is False, **not recommended** for `phoebus`.
+        use_uniform (bool, optional): Creates a uniformly spaced grid over the full radial domain. Default is False, **not recommended** for ``phoebus``.
         rad_max (float, optional): If use_uniform not enabled, sets the radius (in cm) at which the transiton from uniform (linear) radial grid to log radial grid occurs. Default is 5.0e9 cm.
 
     Returns:
@@ -415,8 +415,8 @@ def save_raw_profile( prof: np.ndarray, model_name: str, model_type: str, time =
 def save_ADM_profile( profile: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type = 'stellarcollapse', time = 0.0, OUTPATH = '', save_unconverted = True, save_info = True, verbose = False ):
 
     r'''
-    Saves a processed, post-ADM, converted (code units) phoebus input profile to a ASCII- and numpy-readable file (with nice formatting). Also saves:
-        - unconverted (cgs units) phoebus input profile (optional)
+    Saves a processed, post-ADM, converted (code units) ``phoebus`` input profile to a ASCII- and numpy-readable file (with nice formatting). Also saves:
+        - unconverted (cgs units) ``phoebus`` input profile (optional)
         - model info file with characteristic values, unit conversions, and progenitor + eos bounds (optional)
 
     File naming conventions are:

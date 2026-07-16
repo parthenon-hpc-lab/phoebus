@@ -6,7 +6,7 @@ def calculate_eos_energy_stellarcollapse(rho: np.ndarray, T: np.ndarray, ye: np.
 
     '''
     Calculates an EOS-consistent specific internal energy for a stellar/ccsne progenitor profile using a StellarCollpase equation
-    of state and `Singularity-EOS` Python bindings.
+    of state and ``Singularity-EOS`` Python bindings.
 
     Args:
         rho (np.ndarray): Density of the profile.
@@ -15,8 +15,9 @@ def calculate_eos_energy_stellarcollapse(rho: np.ndarray, T: np.ndarray, ye: np.
         filename (str): Full filename and path pointing to the *.h5 tabulated equation of state.
 
     Returns:
-        np.ndarray: Specific internal energy of the profile.
-        np.ndarray: Energy density of the profile.
+        (tuple): tuple containing:
+            np.ndarray: Specific internal energy of the profile.
+            np.ndarray: Energy density of the profile.
 
     '''
 
@@ -37,7 +38,7 @@ def calculate_eos_energy_helmholtz(rho: np.ndarray, T: np.ndarray, abar: np.ndar
 
     '''
     Calculates an EOS-consistent specific internal energy for a stellar/ccsne progenitor profile using a Helmholtz equation
-    of state and `Singularity-EOS` Python bindings.
+    of state and ``Singularity-EOS`` Python bindings.
 
     Args:
         rho (np.ndarray): Density of the profile.
@@ -46,8 +47,9 @@ def calculate_eos_energy_helmholtz(rho: np.ndarray, T: np.ndarray, abar: np.ndar
         filename (str): Full filename and path pointing to the *.h5 tabulated equation of state.
 
     Returns:
-        np.ndarray: Specific internal energy of the profile.
-        np.ndarray: Energy density of the profile.
+        (tuple): tuple containing:
+            np.ndarray: Specific internal energy of the profile.
+            np.ndarray: Energy density of the profile.
 
     '''
         

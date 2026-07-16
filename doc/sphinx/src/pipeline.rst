@@ -27,7 +27,7 @@ Within the input file, there are a variety of flags and options that can be used
 
 .. list-table:: 
    :header-rows: 1
-   :widths: 20 25 55
+   :widths: 35 20 45
 
    * - Parameter
      - Default
@@ -201,13 +201,14 @@ Progenitor pre-processing & i/o
 .. automodule:: progenitors
     :members:
     :member-order: bysource
-    .. :math:
 
 
 Solving for ADM initial conditions
 ``````````````````````````````````
 .. autoclass:: adm.ADMSolver
     :members:
+    :special-members:
+    :member-order: bysource
 
 
 Converting to ``Phoebus`` input files
@@ -216,7 +217,6 @@ Converting to ``Phoebus`` input files
 .. automodule:: convert
     :members:
     :member-order: bysource
-    .. :math:
 
 There are also a few helper modules that use `singularity-eos`_ that can be used to calculate specific internal energy and get bounds for the 
 equation of state in use:

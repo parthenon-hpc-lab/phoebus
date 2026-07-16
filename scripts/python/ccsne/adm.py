@@ -32,16 +32,16 @@ c = const.c.cgs.value
 class ADMSolver:
 
     '''
-    Solves for the necessary GR quantities needed to initialize monopole GR in phoebus using the ADM (Arnowitt-Deser-Misner) formalism.
+    Solves for the necessary GR quantities needed to initialize monopole GR in ``phoebus`` using the ADM (Arnowitt-Deser-Misner) formalism.
 
     For the full details of the methodologies used, refer to 
-        - ch. XX.X of [Introduction to 3+1 Numerical Relativity](https://academic.oup.com/book/9640),
-        - the phoebus instrument paper; [Barker et al. 2024](10.48550/arXiv.2410.09146), and   
-        - the header file for monopole GR in the main phoebus codebase; monopole_gr.hpp.
+        - ch. XX.X of `Introduction to 3+1 Numerical Relativity <https://academic.oup.com/book/9640>`_,
+        - the ``phoebus`` instrument paper; `Barker et al. 2024 <10.48550/arXiv.2410.09146>`_, and   
+        - the header file for monopole GR in the main ``phoebus`` codebase; ``src/monopole_gr/monopole_gr.hpp``.
 
     *add more detailed references, methods, assumptions here as needed!*
 
-    A refactor of Mariam Gogilashvili's original GR_Solver class.
+    A refactor of Mariam Gogilashvili's original GR_Solver class. Full derivations can also be found in her thesis (Gogilashvili 2024).
 
     '''
 
@@ -137,9 +137,6 @@ class ADMSolver:
 
         '''
         
-        # TODO: consider implementing the same piecewise polynomial method jonah uses in monopole_gr_base.hpp 
-        # TODO: probably best if we only have options for basic linear interp and above method. cubic et al. do NOT work well in the core.
-        
         if self.method_adm == 'linear': # todo: change this to an additional flag, not the same as above method
             return linear(self.grid, y, fill_value = 'extrapolate')
 
@@ -151,8 +148,8 @@ class ADMSolver:
         
         '''
         Creates a new radial grid based on initialization parameters (`use_def_rad`, `use_*_cut`, `use_custom`) and generates
-        interpolators for all primitive quantities. Also recalculates specific internal energy using `Singularity-EOS` to be consistent with the equation 
-        of state that will be used in phoebus.
+        interpolators for all primitive quantities. Also recalculates specific internal energy using ``Singularity-EOS`` to be consistent with the equation 
+        of state that will be used in ``phoebus``.
 
         Args:
             use_def_rad (bool, optional): If enabled, uses the original radial grid of the input progenitor profile.

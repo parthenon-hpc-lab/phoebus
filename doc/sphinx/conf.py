@@ -28,6 +28,8 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
+    "sphinx.ext.mathjax",
+    "sphinx_math_dollar",
 ]
 
 # ensuring return types are always inline (rather than a separate field) for numpy-style docstrings

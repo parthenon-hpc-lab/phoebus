@@ -24,11 +24,11 @@ msun = const.M_sun.cgs.value
 def convert_PHB_profile(prof: np.ndarray):
 
     r'''
-    Converts a post-ADM stellar/ccsne profile to a phoebus-readable input file in code (phb) units. 
+    Converts a post-ADM stellar/ccsne profile to a ``phoebus``-readable input file in code (phb) units. 
     Also calculates and provides the central density, along with characteristic mass and radius as given by
 
-        $M_0 = \rho_c^{-1/2} c^3 G^{-3/2}$
-        $R_0 = G M_0 c^{-2}$
+        $$M_0 = \rho_c^{-1/2} c^3 G^{-3/2}$$
+        $$R_0 = G M_0 c^{-2}$$
 
     Args:
         prof (np.ndarray): Post-ADM, Eulerian stellar/ccsne profile (from MESA, KEPLER, GR1D...). 
