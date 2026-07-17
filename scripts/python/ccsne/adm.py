@@ -242,7 +242,7 @@ class ADMSolver:
 
         recalling that $\varphi = -r \partial \varphi$ and given a symm. spherical gravitational potential, s.t.
 
-        $$ \varphi = - \frac{2 \pi G}{c^2} \rho r^2 $$.
+        $$ \varphi = - \frac{2 \pi G}{c^2} \rho r^2 $$
 
         Returns:
             tuple:
@@ -285,7 +285,7 @@ class ADMSolver:
 
         Given our 3-metric , s.t.
 
-        $$ \gamma^2 = ( 1 - (v^2 + \omega^2\r^2))^{-1} $$
+        $$ \gamma^2 = (1 - (v^2 + \omega^2 r^2))^{-1} $$
 
         We find inital values for ADM quantities as given by
 
