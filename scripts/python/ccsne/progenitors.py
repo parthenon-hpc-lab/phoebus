@@ -1,17 +1,14 @@
-'''
-    new skeleton for a unified library that can handle retrieval and formatting 
-    of progenitor data for a unified case; should manage profiles taken from 
-    the following stellar evolution/ccsne codes:
-        > MESA
-        > KEPLER
-        > GR1D
-    also contains some helper utilities for reading in GR1D time series data and bounce times.
-        
-    law. 16 jun 2026
 
-    :meta private:
+# new skeleton for a unified library that can handle retrieval and formatting 
+# of progenitor data for a unified case; should manage profiles taken from 
+# the following stellar evolution/ccsne codes:
+#     > MESA
+#     > KEPLER
+#     > GR1D
+# also contains some helper utilities for reading in GR1D time series data and bounce times.
+#
+# law. 16 jun 2026
 
-'''
 
 from astropy import constants as const
 import pandas as pd
@@ -490,10 +487,10 @@ def read_time_series( PATH: str ):
         PATH (str): Path to the run directory (should contain all GR1D output files).
 
     Returns:
-        (tuple): tuple containing:
+        tuple:
     
-            data (dict): Time series data (key: time, value: quantity at that timestep).
-            times (list): Times that correspond to the keys in the full dictionary.
+        - data (dict): Time series data (key: time, value: quantity at that timestep).
+        - times (list): Times that correspond to the keys in the full dictionary.
     
     '''
     time_series_data = {}

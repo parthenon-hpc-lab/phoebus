@@ -1,6 +1,6 @@
 .. _singularity-eos: https://lanl.github.io/singularity-eos
 
-The CCSNe Pipeline
+The CCSNe API
 ==================
 
 .. note::
@@ -195,8 +195,8 @@ This entire pipeline can be used as a "black-box" process. However, there are ma
 processing, progenitor I/O, troubleshooting, and more. Detailed documentation for all classes, methods, and functions can be found below.
 
 
-Progenitor pre-processing & i/o
-`````````````````````````````````
+Progenitor Processing & I/O
+````````````````````````````
 
 .. automodule:: progenitors
     :members:
@@ -213,8 +213,8 @@ Solving for ADM initial conditions
     :member-order: bysource
 
 
-Converting to ``Phoebus`` input files
-`````````````````````````````````````
+Converting to Phoebus-style input
+`````````````````````````````````
 
 .. automodule:: convert
     :members:

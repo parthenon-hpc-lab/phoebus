@@ -1,11 +1,9 @@
-'''
-    main driver for the ccsne conversion pipeline, intended to be lightweight and user friendly.
-    one should be able to just run this with some combination of flags/user-input arguments and
-    get a raw profile, phoebus profile (cgs, optional), and phoebus profile (code units).
+# main driver for the ccsne conversion pipeline, intended to be lightweight and user friendly.
+# one should be able to just run this with some combination of flags/user-input arguments and
+# get a raw profile, phoebus profile (cgs, optional), and phoebus profile (code units).
+#
+# law. 23 jun 2026
 
-    law. 23 jun 2026
-    :meta private:
-'''
 
 # useful i/o things
 import os

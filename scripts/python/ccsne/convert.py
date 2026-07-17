@@ -1,14 +1,11 @@
-'''
-    refactor of the original convert.py that allows for conversion of phoebus profiles
-    as a numpy array (instead of extra i/o with files), and also creates an output
-    file with useful diagnostics/metrics about the model to help with *.pin file
-    creation and provide reasonable floors/ceilings.
 
-    law. 30 jun 2026
+# refactor of the original convert.py that allows for conversion of phoebus profiles
+# as a numpy array (instead of extra i/o with files), and also creates an output
+# file with useful diagnostics/metrics about the model to help with *.pin file
+# creation and provide reasonable floors/ceilings.
+#
+# law. 30 jun 2026
 
-    :meta private:
-
-'''
 
 import os
 import numpy as np
@@ -37,12 +34,12 @@ def convert_PHB_profile(prof: np.ndarray):
             Assumed to be in following column order: [radius, density, temperature, ye, sie, velocity, pressure, density (adm), momentum (adm), $S$ (adm), $S^r_r$ (adm)]
 
     Returns:
-        (tuple): tuple containing:
+        tuple:
         
-            prof (np.ndarray): The original profile with all primitive and ADM quantities converted to code units.
-            rhoc (float): Central density of the profile.
-            M0 (float): Characteristic mass of the profile.
-            R0 (float): Characteristic radius of the profile.
+        - prof (np.ndarray): The original profile with all primitive and ADM quantities converted to code units.
+        - rhoc (float): Central density of the profile.
+        - M0 (float): Characteristic mass of the profile.
+        - R0 (float): Characteristic radius of the profile.
     '''
 
     # the input profile has the following columns:

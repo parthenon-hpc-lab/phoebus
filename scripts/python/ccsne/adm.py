@@ -1,17 +1,14 @@
-'''
- A refactor of Mariam's GR_Solver class, with some of the original methods and a cleaner i/o structure.
 
-    >>> outstanding tasks
+#  A refactor of Mariam's GR_Solver class, with some of the original methods and a cleaner i/o structure.
+# 
+#     >>> outstanding tasks
+# 
+#         TODO: update class documentation
+#         TODO: update method documentation
+#         TODO: ask brandon + devs about TOV and homologous cases, could reproduce if needed?
+# 
+#     law. 16 jun 2026
 
-        TODO: update class documentation
-        TODO: update method documentation
-        TODO: ask brandon + devs about TOV and homologous cases, could reproduce if needed?
-    
-    law. 16 jun 2026
-
-    :meta private:
-
-'''
 
 from seos import *
 
@@ -230,7 +227,7 @@ class ADMSolver:
 
         Beginnning with our ADM metric in natural units (s.t. $c = 1$), s.t.
         
-         $$ds^2 = (-\alpha^2 +\ beta_i \beta^i) dt^2 + 2 \beta_i dt dx^i + \gamma_{ij} dx^i dx^j$$
+         $$ds^2 = (-\alpha^2 +\beta_i \beta^i) dt^2 + 2 \beta_i dt dx^i + \gamma_{ij} dx^i dx^j$$
         
          and taking a sph. symm. ansatz at $t=0$ (s.t. our shift $\beta = 0$), we write the metric as
 
@@ -245,13 +242,13 @@ class ADMSolver:
 
         recalling that $\varphi = -r \partial \varphi$ and given a symm. spherical gravitational potential, s.t.
 
-        $$ \varphi = -\frac{2 \pi G}{c^2} \rho r^2 $$.
+        $$ \varphi = - \frac{2 \pi G}{c^2} \rho r^2 $$.
 
         Returns:
-            (tuple): tuple containing:
+            tuple:
 
-                alpha2 (np.ndarray): Lapse function ($\alpha$) squared, weak-field approximation.
-                a2 (np.ndarray): Metric component ($a$) squared, weak-field approximation.
+            - alpha2 (np.ndarray): Lapse function ($\alpha$) squared, weak-field approximation.
+            - a2 (np.ndarray): Metric component ($a$) squared, weak-field approximation.
 
         '''
 
@@ -299,11 +296,11 @@ class ADMSolver:
         Also ref. Eqs. 5.10-12 in Gogilashvili 2024 for further relation to $T^{\mu \nu}$.
 
         Returns:
-            (tuple): tuple containing:
+            tuple:
     
-                rho_adm (np.ndarray): Initial ADM density, on the (new) radial grid.
-                P_adm (np.ndarray): Initial ADM momentum, on the (new) radial grid.
-                S_adm (np.ndarray): Initial ADM stress tensor, on the (new) radial grid.
+            - rho_adm (np.ndarray): Initial ADM density, on the (new) radial grid.
+            - P_adm (np.ndarray): Initial ADM momentum, on the (new) radial grid.
+            - S_adm (np.ndarray): Initial ADM stress tensor, on the (new) radial grid.
         '''
 
         # 3-metric??
@@ -348,12 +345,12 @@ class ADMSolver:
             S_adm (np.ndarray): ADM stress tensor, on the (new) radial grid.
 
         Returns:
-            (tuple): tuple containing:
+            tuple:
     
-                a (np.ndarray): Metric component ($a$).
-                K (np.ndarray): Extrinsic curvature ($K_r^r$).
-                alpha (np.ndarray): Lapse function ($\alpha$).
-                beta (np.ndarray): Shift function ($\beta$).
+            - a (np.ndarray): Metric component ($a$).
+            - K (np.ndarray): Extrinsic curvature ($K_r^r$).
+            - alpha (np.ndarray): Lapse function ($\alpha$).
+            - beta (np.ndarray): Shift function ($\beta$).
         '''
 
         # interpolated quantities
@@ -497,13 +494,13 @@ class ADMSolver:
             beta (np.ndarray): Shift function ($\beta$).
 
         Returns:
-            (tuple): tuple containing:
+            tuple:
             
-                rho_adm (np.ndarray): ADM density.
-                P_adm (np.ndarray): ADM momentum.
-                S_adm (np.ndarray): ADM stress tensor, trace.
-                Srr_adm (np.ndarray): ADM stress tensor.
-        
+            - rho_adm (np.ndarray): ADM density.
+            - P_adm (np.ndarray): ADM momentum.
+            - S_adm (np.ndarray): ADM stress tensor, trace.
+            - Srr_adm (np.ndarray): ADM stress tensor.
+    
         '''
 
         r = self.grid
@@ -552,15 +549,15 @@ class ADMSolver:
         maximum number of iterations as set by the user at initialization.
         
         Returns:
-            (tuple): tuple containing:
+            tuple:
             
-                rho_adm (np.ndarray): Final ADM density.
-                P_adm (np.ndarray): Final ADM momentum.
-                S_adm (np.ndarray): Final ADM stress tensor, trace.
-                Srr_adm (np.ndarray): Final ADM stress tensor.
-                a (np.ndarray): Final metric component ($a$).
-                K (np.ndarray): Final extrinsic curvature ($K_r^r$).
-                alpha (np.ndarray): Final lapse function ($\alpha$).
+            - rho_adm (np.ndarray): Final ADM density.
+            - P_adm (np.ndarray): Final ADM momentum.
+            - S_adm (np.ndarray): Final ADM stress tensor, trace.
+            - Srr_adm (np.ndarray): Final ADM stress tensor.
+            - a (np.ndarray): Final metric component ($a$).
+            - K (np.ndarray): Final extrinsic curvature ($K_r^r$).
+            - alpha (np.ndarray): Final lapse function ($\alpha$).
         
         '''
         
