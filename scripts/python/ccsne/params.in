@@ -33,7 +33,7 @@ parameter           default (example, if required)      description + defaults +
 --eos-path          ../grsolver/SFHo.h5                 absolute or relative path to eos table (must be *.h5 file)
 --eos-type          StellarCollapse                     type of tabulated eos, default: StellarCollapse (options: StellarCollapse, Helmholtz)               
 
---use-rhocut                                            (bool) enables a density-only cut for the new grid, 
+--use-rhocut                                            (bool) enables a density-only cut for the new grid. default option if no ADM grid flags are included.
 --rhocut            2.0e3                               (optional) if using rhocut, the density to truncate at in g/cm^
 
 --use-radcut                                            (bool) enables a radius-only cut for the new grid; keeps original inner radius

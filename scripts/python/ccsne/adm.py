@@ -143,22 +143,24 @@ class ADMSolver:
             return piecewise(self.grid, y)
 
 
-    def get_grid_data( self, use_def_rad: bool, use_rho_cut: bool, rho_cut: float, use_rad_cut: bool, rad_cut: float, use_custom: bool, custom_min: float, custom_max: float):
+    def get_grid_data( self, use_def_rad: bool=False, use_rho_cut: bool=True, rho_cut: float=2e3, use_rad_cut: bool=False, rad_cut: float= 5e9, use_custom: bool=False, custom_min: float=5.0e5, custom_max: float=5.0e9):
         
         '''
         Creates a new radial grid based on initialization parameters (`use_def_rad`, `use_*_cut`, `use_custom`) and generates
         interpolators for all primitive quantities. Also recalculates specific internal energy using ``Singularity-EOS`` to 
         be consistent with the equation of state that will be used in ``phoebus``.
 
+        If no initialization parameters are input, `use_rho_cut` at a threshold density of 2.0e3 g/cm^3 is used to create the new grid.
+
         Args:
-            use_def_rad (bool, optional): If enabled, uses the original radial grid of the input progenitor profile.
-            use_rho_cut (bool, optional): If enabled, uses a density threshold (in g/cm^3) to truncate outer radial coordinate.
-            rho_cut (float, optional): Density to make the radial truncation at, if use_rho_cut enabled.
-            use_rad_cut (bool, optional): If enabled, uses a radial threshold (in cm) to truncate outer radial coordinate.
-            rad_cut (float, optional): Radius to make the radial truncation at, if use_rad_cut enabled.
-            use_custom (bool, optional): If enabled, allows user to input custom grid using radial bounds (in cm).
-            custom_min (float, optional): Minimum radius of grid, if use_custom enabled.
-            custom_max (float, optional): Maximum radius of grid, if use_custom enabled.
+            use_def_rad (bool, optional): If enabled, uses the original radial grid of the input progenitor profile. Defaults to False.
+            use_rho_cut (bool, optional): If enabled, uses a density threshold (in g/cm^3) to truncate outer radial coordinate. Defaults to True.
+            rho_cut (float, optional): Density to make the radial truncation at, if use_rho_cut enabled. Default is 2.0e3 (g/cm^3).
+            use_rad_cut (bool, optional): If enabled, uses a radial threshold (in cm) to truncate outer radial coordinate. Defaults to False.
+            rad_cut (float, optional): Radius to make the radial truncation at, if use_rad_cut enabled. Default is 5.0e9 cm.
+            use_custom (bool, optional): If enabled, allows user to input custom grid using radial bounds (in cm). Defaults to False.
+            custom_min (float, optional): Minimum radius of grid, if use_custom enabled. Default is 5.0e5 cm.
+            custom_max (float, optional): Maximum radius of grid, if use_custom enabled. Default is 5.0e9 cm.
 
         '''
 
@@ -166,12 +168,14 @@ class ADMSolver:
             prof = np.loadtxt(self.DATPATH)
 
         elif self.problem == 'tov':
-            # come back to this
-            pass
+            raise UserWarning('TOV problem not currently supported for initialization. Refer to `scripts/python/grsolver` for deprecated methods.')
 
         elif self.problem == 'homologous':
-            # come back to this
-            pass
+            raise UserWarning('Homologous collapse problem not currently supported for initialization. Refer to `scripts/python/grsolver` for deprecated methods.')
+        
+        else:
+            raise UserWarning(f'{self.problem} problem is not implemented in this pipeline.')
+        
 
         # we need to preserve the original data from the profile to calculate lapse functions, etc.
         self.r0     = prof[:, 0]
@@ -204,8 +208,10 @@ class ADMSolver:
          
             if self.eos_type.lower() == 'helmholtz':
                 eps, u = calculate_eos_energy_helmholtz( self.rho0, temp, abar, zbar, self.EOSPATH )
-            else:
+            elif self.eos_type.lower() == 'stellarcollapse':
                 eps, u = calculate_eos_energy_stellarcollapse( self.rho0, temp, ye, self.EOSPATH )
+            else:
+                raise UserWarning(f'StellarCollapse style EOS {self.eos_type} not currently supported for CCSNe initialization.')
             
             self.rho = self.rho0 + u / c ** 2.0  # energy density
 
@@ -386,7 +392,7 @@ class ADMSolver:
         
         # break if original data is too sparse and our ivp dimensions are incorrect...
         if (result.shape[1] != self.zones):
-            raise ArithmeticError( f'initial raw profile at `{self.DATPATH}` too radially sparse for interpolation. increase the factor or decrease drad spacing and try again.')
+            raise ValueError( f'initial raw profile at `{self.DATPATH}` too radially sparse for interpolation. increase the factor or decrease drad spacing and try again.')
 
         a = result[0]
         K = result[1]
@@ -471,6 +477,8 @@ class ADMSolver:
             M[i, i] = B
             M[i, i + 1] = C
 
+        # TODO: by recommendation of brandon, consider implementing a 
+        #       dedicated tridiagonal matrix solver in the near future?
         def f(x):
             return np.dot(M, x) + V
 
@@ -566,6 +574,10 @@ class ADMSolver:
         r = self.grid
         alpha_prev = np.sqrt(self.alpha2_int(r))
 
+        # doing an initial caluclation of all returned quantities (e.g. if convergence criteria is met on the zeroth iteration)
+        a, K, alpha, beta = self.calculate_metric(rho_adm, P_adm, S_adm)
+        _, _, _, Srr_adm = self.calculate_ADM(a, alpha, beta)
+
         for i in range( self.n ):
 
             a, K, alpha, beta = self.calculate_metric(rho_adm, P_adm, S_adm)
@@ -579,6 +591,7 @@ class ADMSolver:
 
             if i == (self.n - 1):
                 raise ArithmeticError(f'ADM calculation has not converged after {self.n} iterations.')
+            
             alpha_prev = alpha
             rho_adm, P_adm, S_adm, Srr_adm = self.calculate_ADM(a, alpha, beta)
 

@@ -265,7 +265,7 @@ def interp_to_eulerian( prof: np.ndarray, factor: int = 4, use_drad: bool = Fals
         use_drad (bool, optional): Enables the use of a specific radial spacing. Default is False.
         drad (float, optional): If use_drad enabled, specifices desired minimum radial spacing (in cm). Default is 1.0e7 cm
         use_uniform (bool, optional): Creates a uniformly spaced grid over the full radial domain. Default is False, **not recommended** for ``phoebus``.
-        rad_max (float, optional): If use_uniform not enabled, sets the radius (in cm) at which the transiton from uniform (linear) radial grid to log radial grid occurs. Default is 5.0e9 cm.
+        unif_max (float, optional): If use_uniform not enabled, sets the radius (in cm) at which the transiton from uniform (linear) radial grid to log radial grid occurs. Default is 5.0e9 cm.
 
     Returns:
         np.ndarray: The original profile, with increased radial resolution.

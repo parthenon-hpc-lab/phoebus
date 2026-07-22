@@ -1,13 +1,13 @@
 .. _singularity-eos: https://lanl.github.io/singularity-eos
 
-The CCSNe API
+CCSNe Initialization
 ==================
 
 .. note::
 
    These docs (and this pipeline!) are under active development. If you encounter a bug or add a new feature, let the developers know!
 
-If you're interested in exploring the core-collapse supernovae (e.g. ``progenitor`` ) problem in ``Phoebus``, 
+If you're interested in exploring the core-collapse supernova (e.g. ``progenitor`` ) problem in ``Phoebus``, 
 you'll need to take a stellar progenitor from a Lagrangian code (e.g. MESA, KEPLER, GR1D) and convert it to
 a ``Phoebus`` -readable input file.
 
@@ -21,7 +21,7 @@ Like ``Phoebus``, this pipeline works through a master input file. You can run t
 
 .. code-block:: bash
 
-    python3 ccsne.py --file {input file name} -v
+    python3 stellar.py --file {input file name} -v
 
 Within the input file, there are a variety of flags and options that can be used to process your stellar progenitor.
 
@@ -88,7 +88,7 @@ Within the input file, there are a variety of flags and options that can be used
      - Type of tabulated eos, default: StellarCollapse (options: StellarCollapse, Helmholtz).
    * - ``‑‑use‑rhocut``
      -
-     - (bool) Enables a density-only cut for the new grid.
+     - (bool) Enables a density-only cut for the new grid. Default option if no ADM grid flags are included.
    * - ``‑‑rhocut``
      - ``2.0e3``
      - (optional) If using rhocut, the density to truncate at in g/cm^3.
@@ -153,7 +153,7 @@ Within the input file, there are a variety of flags and options that can be used
      -
      - (optional, bool) FOR TESTING ONLY, uses original grsolver pipeline.
 
-The full parameter documentation can also be found in ``phoebus/scripts/python/ccsne/params.in``, which can be copied and used as a starting template.
+The full parameter documentation can also be found in ``phoebus/scripts/python/stellar/params.in``, which can be copied and used as a starting template.
 
 
 Dependencies

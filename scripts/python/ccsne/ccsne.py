@@ -119,7 +119,7 @@ def main( ):
             prof_raw = get_MESA_profile( params.model_path, verbose=params.verbose)
     
     elif params.model_type.lower() == 'kepler':
-        if params.model_header > 0:
+        if params.model_header >= 0:
             prof_raw = get_KEPLER_profile( params.model_path, params.model_header, params.verbose)
         else:
             prof_raw = get_KEPLER_profile( params.model_path, verbose=params.verbose)
@@ -136,14 +136,12 @@ def main( ):
 
     # we leave the resolution and primitives as-is for GR1D models since they're evolved.
     if params.model_type.lower() != 'gr1d':
+        
         # default
         if not params.depr:
             # interp from lagrangian to eulerian resolution (higher!)
-            if params.use_drad_interp:
-                prof_raw = interp_to_eulerian( prof_raw, use_drad = True, drad=params.drad_interp )
-            else:
-                prof_raw = interp_to_eulerian( prof_raw, factor = params.factor_interp, use_drad=False)
-        
+            prof_raw = interp_to_eulerian( prof_raw, factor=params.factor_interp, use_drad=params.use_drad_interp, drad=params.drad_interp, use_uniform=params.use_uniform, unif_max=params.unif_max )
+
         # if we're testing against deprecated methods only
         else:
             if params.verbose: print('>>> WARNING: using deprecated methods of subsampling, for testing only!!')
@@ -179,6 +177,10 @@ def main( ):
     # save raw, pre ADM profile (progenitors.py)
     save_raw_profile( prof_raw, params.model_name, params.model_type, params.timestamp, params.save_path, params.verbose )
     raw_prof_name = f'{params.model_name.lower()}_{params.model_type.lower()}.prof'
+
+    # check to see if at least one of our adm grid params was enabled. if not, set use_rhocut to True.
+    if not (params.use_def_rad or params.use_rhocut or params.use_radcut or params.use_custom):
+        params.use_rhocut = True 
 
     # initialize ADM solver, solve for new profile
     adm = ADMSolver( params.adm_problem, os.path.join(params.save_path, raw_prof_name), params.eos_path, params.eos_type, params.use_def_rad, params.use_rhocut, params.rhocut, params.use_radcut, params.radcut, params.use_custom, params.custom_min, params.custom_max, params.zones, params.interp_method, params.bc_type, params.interp_method_adm, params.iterations, params.dalpha_eps, params.extrapolate, params.verbose)
