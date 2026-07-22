@@ -9,7 +9,7 @@
 import os, sys, re
 
 # adding a source path for documentation contained in python script docstrings
-sys.path.insert(0, os.path.join('..', '..', 'scripts', 'python', 'ccsne'))
+sys.path.insert(0, os.path.join('..', '..', 'scripts', 'python', 'stellar'))
 
 # a little something extra to remove default values of args in python method signatures (cleaner visuals)
 # this might need to be removed/adjusted later on once we document the main c/c++ codebase.
