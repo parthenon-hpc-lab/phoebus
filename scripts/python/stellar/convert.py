@@ -19,6 +19,7 @@ c = const.c.cgs.value
 kB = const.k_B.cgs.value
 msun = const.M_sun.cgs.value
 
+# TODO: add enums to support both pre- and post-ADM column indices/labels for code readability (law).
 
 def convert_PHB_profile(prof: np.ndarray):
 

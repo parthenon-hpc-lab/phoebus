@@ -113,7 +113,7 @@ def main( ):
 
     # reading the intitial profile
     if params.model_type.lower() == 'mesa':
-        if params.model_header > 0:
+        if params.model_header >= 0:
             prof_raw = get_MESA_profile( params.model_path, params.model_header, params.verbose)
         else:
             prof_raw = get_MESA_profile( params.model_path, verbose=params.verbose)
@@ -157,15 +157,8 @@ def main( ):
 
         # weighted moving average
         if params.wma_all:
-            prof_raw[:, 1] = wmavg( prof_raw[:, 1], params.wma_n, params.wma_exp)
-            prof_raw[:, 2] = wmavg( prof_raw[:, 2], params.wma_n, params.wma_exp)
-            prof_raw[:, 3] = wmavg( prof_raw[:, 3], params.wma_n, params.wma_exp )
-            prof_raw[:, 4] = wmavg( prof_raw[:, 4], params.wma_n, params.wma_exp)
-            prof_raw[:, 5] = wmavg( prof_raw[:, 5], params.wma_n, params.wma_exp)
-            prof_raw[:, 6] = wmavg( prof_raw[:, 6], params.wma_n, params.wma_exp)
-            prof_raw[:, 7] = wmavg( prof_raw[:, 7], params.wma_n, params.wma_exp)
-            prof_raw[:, 8] = wmavg( prof_raw[:, 8], params.wma_n, params.wma_exp)
-            prof_raw[:, 9] = wmavg( prof_raw[:, 9], params.wma_n, params.wma_exp)
+            for i in range(1, prof_raw.shape[1]):
+                prof_raw[:, i] = wmavg( prof_raw[:, i], params.wma_n, params.wma_exp )
 
         elif params.wma_vel:
             prof_raw[:, 1] = wmavg( prof_raw[:, 1], params.wma_n, params.wma_exp)
