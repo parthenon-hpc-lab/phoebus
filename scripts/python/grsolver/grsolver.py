@@ -12,12 +12,15 @@ from astropy.io import ascii
 from astropy.table import Table
 from astropy import constants as const
 import scipy
-from scipy.interpolate import interp1d
+from scipy.interpolate import interp1d # deprecated
+from scipy.interpolate import Akima1DInterpolator as akima
+from scipy.interpolate import CubicSpline as cubic
+from scipy.ndimage import gaussian_filter1d
 from scipy.integrate import odeint
 from scipy.integrate import solve_ivp
 from scipy import optimize
 from numpy import diff
-from seos import CalculateInternalEnergy
+from seos import CalculateInternalEnergy_DEPR, CalculateInternalEnergy_StellarCollapse, CalculateInternalEnergy_Helmholtz
 from argparse import ArgumentParser
 
 G = const.G.cgs.value
@@ -28,6 +31,7 @@ class GR_Solver:
     def __init__(self, prob, R, Ni, loc, filename, eosfilename):
         self.problem = prob
         self.R = R[R > 0]
+        # print(self.R)
         self.Ni = Ni
         self.loc = loc
         self.filename = filename
@@ -36,6 +40,7 @@ class GR_Solver:
 
     # IMPORT DATA
     def Data(self):
+
         if self.problem == "homologouscollapse":
             r_data = np.load(self.loc + "/r.npy")
             v = np.load(self.loc + "/v.npy")
@@ -47,17 +52,17 @@ class GR_Solver:
             temp = np.load(self.loc + "/temp.npy")
             ye = np.load(self.loc + "/ye.npy")
 
-            if (self.problem=='GR1D' or 'Phoebus_CCSN_1D'):
-                loc='output_snapshot/'
-                r_data=np.load(loc+'r.npy')
-                v=np.load(loc+'v.npy')
-                v_ang=np.load(loc+'v_ang.npy')
-                rho_m=np.load(loc+'rho_m.npy')
-                rho=np.load(loc+'rho.npy')
-                p=np.load(loc+'p.npy')
-                eps=np.load(loc+'eps.npy')
-                temp=np.load(loc+'temp.npy')
-                ye=np.load(loc+'ye.npy')
+        if (self.problem=='GR1D' or self.problem=='Phoebus_CCSN_1D'):
+            #loc='output_snapshot/'
+            r_data=np.load(self.loc+'/r.npy')
+            v=np.load(self.loc+'/v.npy')
+            v_ang=np.load(self.loc+'/v_ang.npy')
+            rho_m=np.load(self.loc+'/rho_m.npy')
+            rho=np.load(self.loc+'/rho.npy')
+            p=np.load(self.loc+'/p.npy')
+            eps=np.load(self.loc+'/eps.npy')
+            temp=np.load(self.loc+'/temp.npy')
+            ye=np.load(self.loc+'/ye.npy')
             
         if self.problem == "tov":
             r_data = np.load("TOV_DATA/tov_r.npy") * 1.0e2
@@ -85,36 +90,65 @@ class GR_Solver:
             ye = []
             temp = []
             sie = []
+            # TODO: add a flag to determine if we need additional profile info for Helmholtz
+            abar = []
+            zbar = []
             data0 = ascii.read(
                 self.loc + self.filename,
-                header_start=1,
-                data_start=2,
+                # header_start=1,
+                # data_start=2,
+                # header_start=0,
+                data_start=0,
                 delimiter="\t",
                 guess=False,
             )
             for line in data0:
                 spl = line[0].split()
-                r_data.append(spl[2])
-                v.append(spl[3])
-                v_ang.append(spl[9])
-                rho_m.append(spl[4])
-                p.append(spl[6])
-                ye.append(spl[11])
-                temp.append(spl[5])
+                # >>> law. changed the indices of this to reflect current MESA > grsolver output, 29 oct 2025
+                r_data.append(spl[0])
+                v.append(spl[1])
+                v_ang.append(spl[2])
+                rho_m.append(spl[3])
+                p.append(spl[4])
+                ye.append(spl[5])
+                temp.append(spl[6])
                 sie.append(spl[7])
-        ind = np.where(np.array(r_data, dtype=float) > max(self.R))[0][0]
-        r_data = np.array(r_data[0:ind], dtype=float)
-        v = np.array(v[0:ind], dtype=float)
-        v_ang = np.array(v_ang[0:ind], dtype=float)
-        rho_m = np.array(rho_m[0:ind], dtype=float)
-        p = np.array(p[0:ind], dtype=float)
-        temp = np.array(temp[0:ind], dtype=float)
-        sie = np.array(sie[0:ind], dtype=float)
-        ye = np.array(ye[0:ind], dtype=float)
+                # >>> law. added new data to handle Helmholtz EOS calculations, update with flag in script later. 16 feb 2026
+                abar.append(spl[8])
+                zbar.append(spl[9])
+
+
+        # print(self.R, r_data)
+        ind = np.where(np.array(r_data, dtype=float) > max(self.R))[0]
+        # if we exceed the radius, truncate everything to that index >> law. 4 dec 25
+        # added new conditional here, was failing for gr1d cases since the radius was the same
+        
+        if ind.size > 0:
+            ind = ind[0]
+            r_data = np.array(r_data[0:ind], dtype=float)
+            v = np.array(v[0:ind], dtype=float)
+            v_ang = np.array(v_ang[0:ind], dtype=float)
+            rho_m = np.array(rho_m[0:ind], dtype=float)
+            p = np.array(p[0:ind], dtype=float)
+            temp = np.array(temp[0:ind], dtype=float)
+            sie = np.array(sie[0:ind], dtype=float)
+            ye = np.array(ye[0:ind], dtype=float)
+            abar = np.array(abar[0:ind], dtype=float)
+            zbar = np.array(zbar[0:ind], dtype=float)
+
         if self.problem == "stellartable":
-            eps, u, temp1 = CalculateInternalEnergy(
-                rho_m, ye, p, 1e8, 1e12, self.eosfilename
-            )
+            # eps, u, temp1 = CalculateInternalEnergyDEPR(
+            #     rho_m, ye, p, 1e8, 1e12, self.eosfilename
+            # )
+            
+            if self.eosfilename == 'helmholtz':
+                eps, u = CalculateInternalEnergy_Helmholtz(
+                    rho_m, temp, abar, zbar
+                )
+            else:
+                eps, u = CalculateInternalEnergy_StellarCollapse(
+                rho_m, temp, ye, self.eosfilename
+                )
             rho = rho_m + u / c ** 2.0  ### energy density
 
         # RETURN ORIGINAL DATA FOR GRID FROM DATA
@@ -125,13 +159,23 @@ class GR_Solver:
             self.alpha2_int = interp1d(r_data, alpha2)
         # RETURN INTERPOLATE FUNCTIONS TO BE ABLE TO CALCULATE THESE QUANTITIES FOR ANY GIVEN RADIUS VECTOR
         self.v_int = interp1d(r_data, v, fill_value="extrapolate")
+
+        # law >> will smoothing the velocity first work for interpolation???
+        # vsmooth = gaussian_filter1d(v, sigma = 1.0)
+        self.v_int_cubic = cubic(r_data, v)
+
         self.v_ang_int = interp1d(r_data, v_ang, fill_value="extrapolate")
         self.rho_int = interp1d(r_data, rho, fill_value="extrapolate")
         self.p_int = interp1d(r_data, p, fill_value="extrapolate")
-        self.rho_m_int = interp1d(r_data, rho_m, fill_value="extrapolate")
-        self.ye_int = interp1d(r_data, ye, fill_value="extrapolate")
-        self.temp_int = interp1d(r_data, temp, fill_value="extrapolate")
-        self.eps_int = interp1d(r_data, eps, fill_value="extrapolate")
+        self.p_int_cubic = cubic(r_data, p)
+        # self.rho_m_int = interp1d(r_data, rho_m, fill_value="extrapolate")
+        self.rho_m_int = cubic(r_data, rho_m)
+        # self.ye_int = interp1d(r_data, ye, fill_value="extrapolate")
+        self.ye_int = cubic(r_data, ye)
+        # self.temp_int = interp1d(r_data, temp, fill_value="extrapolate")
+        self.temp_int = cubic(r_data, temp)
+        # self.eps_int = interp1d(r_data, eps, fill_value="extrapolate")
+        self.eps_int = cubic(r_data, eps)
         return
 
     # METRIC FOR NEWTONIAN APPROXIMATION
@@ -150,7 +194,9 @@ class GR_Solver:
                 / r[i]
                 * (r[i] + self.r0 - abs(r[i] - self.r0))
             )
-            phi[i] = np.trapz(I, x=self.r0)
+            # <<< law. numpy.trapz is deprecated and only works with np < 2.0; added updated method if error occurs.
+            try: phi[i] = np.trapz(I, x=self.r0)
+            except: phi[i] = np.trapezoid(I, x=self.r0)
         dphi = np.gradient(phi, r)
         alpha2 = 1.0 + 2.0 * phi / c ** 2.0
         a2 = 1.0 + 2.0 * r * dphi / c ** 2.0
@@ -218,6 +264,8 @@ class GR_Solver:
         result = sol.y
         a = result[0]
         K = result[1]
+
+        print(rho_adm.size, r.size)
 
         ################# Solve for lapse
         ## INITIALIZE MATRIX
@@ -352,9 +400,13 @@ class GR_Solver:
         r = self.R
         alpha_prev = np.sqrt(self.alpha2_int(r))
         for i in range(self.Ni):
-            print(i)
+            # print(i)
             a, K, alpha, beta = self.CalculateMetric(r, rho_adm, P_adm, S_adm)
+            print(f'{i: 01d} {np.max(abs(alpha)): 04.5e} {np.max(abs(alpha_prev- alpha)): 04.5e}')
             if np.max(abs(alpha_prev - alpha)) < 1.0e-12:
+                break
+            # adding a new convergence criteria (slightly looser, not sure why the original value was selected.)
+            if np.max(abs(alpha_prev - alpha)) < 6.0e-12:
                 break
             if i == 99:
                 print("ERROR: HAS NOT CONVERGED AFTER 100 ITERATIONS")
@@ -375,16 +427,35 @@ class GR_Solver:
         return rho_adm, P_adm, S_adm, Srr_adm, a, K, alpha
 
     ##### EXTRAPOLATE DATA TO INCLUDE r=0
-    def ExtrapolateData(self, savemetric=False):
-        r = np.linspace(0, max(self.R), 10000)
+    def ExtrapolateData(self, grid=10000, savemetric=False, unif_grid=True):
+        if unif_grid:
+            r = np.linspace(0, max(self.R), grid)
+        else:
+        # law. >> adding a non-uniform grid here to hopefully get better resolution around the Fe core for CCSNe problem?
+        # law. >> todo: come back and check the stiching between spacing...?
+            r_unif = np.linspace(0, 5e8, int(grid * 0.7))
+            r_log = np.logspace(np.log10(5e8), np.log10(max(self.R)), int(grid * 0.3), base=10.0)
+            r = np.concatenate((r_unif, r_log[1:]), axis=0) 
+
         rho_adm0, P_adm0, S_adm0, Srr_adm0, a0, K0, alpha0 = self.Iterate(doplot=False)
-        rho_adm = interp1d(self.R, rho_adm0, fill_value="extrapolate")(r)
-        P_adm = interp1d(self.R, P_adm0, fill_value="extrapolate")(r)
-        S_adm = interp1d(self.R, S_adm0, fill_value="extrapolate")(r)
-        Srr_adm = interp1d(self.R, Srr_adm0, fill_value="extrapolate")(r)
-        a = interp1d(self.R, a0, fill_value="extrapolate")(r)
-        K = interp1d(self.R, K0, fill_value="extrapolate")(r)
-        alpha = interp1d(self.R, alpha0, fill_value="extrapolate")(r)
+        # rho_adm = interp1d(self.R, rho_adm0, fill_value="extrapolate")(r)
+        # P_adm = interp1d(self.R, P_adm0, fill_value="extrapolate")(r)
+        # S_adm = interp1d(self.R, S_adm0, fill_value="extrapolate")(r)
+        # Srr_adm = interp1d(self.R, Srr_adm0, fill_value="extrapolate")(r)
+        # a = interp1d(self.R, a0, fill_value="extrapolate")(r)
+        # K = interp1d(self.R, K0, fill_value="extrapolate")(r)
+        # alpha = interp1d(self.R, alpha0, fill_value="extrapolate")(r)
+
+        # law. >> ensuring a smooth gradient with akima interpolation (instead of linear).
+
+        rho_adm = cubic(self.R, rho_adm0)(r, extrapolate=True)
+        P_adm = cubic(self.R, P_adm0)(r, extrapolate=True)
+        S_adm = cubic(self.R, S_adm0)(r, extrapolate=True)
+        Srr_adm = cubic(self.R, Srr_adm0)(r, extrapolate=True)
+        a = cubic(self.R, a0)(r, extrapolate=True)
+        K = cubic(self.R, K0)(r, extrapolate=True)
+        alpha = cubic(self.R, alpha0)(r, extrapolate=True)
+
         if savemetric == True:
             np.save("a", a)
             np.save("K", K)
@@ -392,21 +463,21 @@ class GR_Solver:
 
         return r, rho_adm, P_adm, S_adm, Srr_adm
 
-    def SaveFinalData(self, filename):
+    def SaveFinalData(self, filename, zones=10000):
         pl.clf()
-        r, rho_adm, P_adm, S_adm, Srr_adm = self.ExtrapolateData()
+        r, rho_adm, P_adm, S_adm, Srr_adm = self.ExtrapolateData(grid=zones)
 
         from astropy.io import ascii
         from astropy.table import Table
 
         data = Table()
         data["r"] = r
-        data["mass_density"] = self.rho_m_int(r)
-        data["temp"] = self.temp_int(r)
-        data["Ye"] = self.ye_int(r)
-        data["specific_internal_energy"] = self.eps_int(r)
-        data["velocity"] = self.v_int(r)
-        data["pressure"] = self.p_int(r)
+        data["mass_density"] = self.rho_m_int(r, extrapolate=True)
+        data["temp"] = self.temp_int(r, extrapolate=True)
+        data["Ye"] = self.ye_int(r, extrapolate=True)
+        data["specific_internal_energy"] = self.eps_int(r, extrapolate=True)
+        data["velocity"] = self.v_int_cubic(r, extrapolate=True)
+        data["pressure"] = self.p_int_cubic(r, extrapolate=True)
         data["adm_density"] = rho_adm
         data["adm_momentum"] = P_adm
         data["S_adm"] = S_adm
@@ -431,7 +502,7 @@ def main():
     if args.problem == "tov":
         r = np.linspace(0.00001, 2500, 1000) * 1.0e2
     if args.problem == "stellartable":
-        r = np.linspace(45, 10000, 1000) * 1.0e5
+        r = np.linspace(45, 50000, 1000) * 1.0e5 # increasing the radial cutoff, this will need to be refactored later for density cut
     if args.problem == "homologouscollapse" or args.problem == "GR1D" or args.problem == "Phoebus1D":
         r = np.load(args.loc + "/r.npy")
 
@@ -440,7 +511,8 @@ def main():
     GRsolver = GR_Solver(args.problem, r, Ni, args.loc, args.filename, args.eosfilename)
     GRsolver.Data()
     filename = "ADM_" + args.problem + ".dat"
-    GRsolver.SaveFinalData(args.filename)
+    # law >> updated minor typo when saving filenames. 4 nov 2025
+    GRsolver.SaveFinalData(filename) 
     return
 
 

@@ -3,6 +3,8 @@ import argparse
 from pathlib import Path
 
 c = 2.99792458e10  # speed of light in cm/s
+trunc = False
+kb_mev = 8.61738568e-11 # conversion factor, gr1d temperatures are in MeV
 
 def read_time_series(filename):
     """Reads a time series file with radial profiles at each time step."""
@@ -55,7 +57,24 @@ def save_snapshot_at_time(time, data_dicts, gr1d_output_dir):
 
     v_ang = np.zeros_like(r)
     rho = rho_m + eps * rho_m / c**2
+    temp /= kb_mev # converting back to kelvin as expected.
 
+    # >> adding a new condition to truncate at a specific radius (def. 500 + 100 km)
+    if trunc:
+        trad = 6e7 # 600 km
+        
+        r_trunc = r[r < trad]
+        rho     = rho[r < trad]
+        rho_m   = rho_m[r < trad]
+        eps     = eps[r < trad]
+        temp    = temp[r < trad]
+        ye      = ye[r < trad]
+        p       = p[r < trad]
+        v       = v[r < trad]
+        v_ang   = v_ang[r < trad]
+        r = r_trunc
+        # print(r.shape, rho.shape, eps.shape, temp.shape, ye.shape, p.shape, v.shape, v_ang.shape)
+    
     np.save(gr1d_output_dir / 'r.npy', r)
     np.save(gr1d_output_dir / 'v.npy', v)
     np.save(gr1d_output_dir / 'v_ang.npy', v_ang)
@@ -96,7 +115,7 @@ def main(time, path='20M_convection_Mariam/', output_dir='gr1d_output_snapshot/'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Extract snapshot from GR1D time series at a given time.")
-    parser.add_argument('time', type=float, help='Target time in seconds  (NOTE: not a postbounce time)')
+    parser.add_argument('--time', type=float, help='Target time in seconds  (NOTE: not a postbounce time)')
     parser.add_argument('--path', type=str, default='20M_convection_Mariam/', help='Path to data files')
     parser.add_argument('--output_dir', type=str, default='GR1D_output_snapshot/', help='Directory to save .npy outputs')
 

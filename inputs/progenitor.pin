@@ -16,7 +16,7 @@
 problem = homologous
 
 <parthenon/job>
-problem_id  = homologous # problem ID: basename of output filenames
+problem_id  = progenitor # problem ID: basename of output filenames
 
 <parthenon/output1>
 variables = p.density,  &
@@ -28,6 +28,7 @@ variables = p.density,  &
 	    pressure,	&
 	    temperature, &
       	    cs, &
+            sie, &
       	    p.ye, &
       	    g.c.coord, &
      	    g.n.coord, &
@@ -55,20 +56,20 @@ dt = 1
 
 <parthenon/time>
 nlim        = -1        # cycle limit
-tlim        = 10      # time limit
+tlim        = 0.1      # time limit
 integrator  = rk2       # time integration algorithm
 ncycle_out  = 1         # interval for stdout summary info
 dt_init_fact = 1.e-6
 
 <parthenon/mesh>
 nghost = 4
-#refinement = adaptive
+refinement = adaptive
 numlevel = 3
 bc_vars = conserved
 
-nx1         = 8000        # Number of zones in X1-direction
+nx1         = 2000        # Number of zones in X1-direction
 x1min       = 0       # minimum value of X1
-x1max       = 1.         # maximum value of X1
+x1max       = 0.89         # maximum value of X1
 ix1_bc      = reflect        # Inner-X1 boundary condition flag
 ox1_bc      = reflect        # Outer-X1 boundary condition flag
 
@@ -86,7 +87,7 @@ ox3_bc      = periodic      # Outer-X3 boundary condition flfgag
 
 num_threads = 1         # maximum number of OMP threads
 
-<parthenon/meshblock>
+<parthenon/meshblock> # number of zones in a meshblock (i.e. no of cores)
 nx1 = 2000
 nx2 = 1
 nx3 = 1
@@ -108,7 +109,7 @@ use_sp5 = false
 hydro = true
 he = false
 3t = false
-rad = false
+rad = false # come back to this!!
 tracers = false
 
 <fluid>
@@ -126,11 +127,12 @@ enable_ceilings = true
 enable_flux_fixup = true
 enable_c2p_fixup = true
 floor_type = ConstantRhoSie
+# updated floors!
 rho0_floor = 1.0e-10
-sie0_floor = 1.0e-11
+sie0_floor = -1.0e-1 # << changed back to original oom.
 ceiling_type = ConstantGamSie
-sie0_ceiling = 10.0;
-gam0_ceiling = 10.0;
+sie0_ceiling = 1.0e3
+gam0_ceiling = 1.0e4
 
 # rad disabled in default *.pin; see <physics> above
 # simple example for lightbulb case
@@ -144,8 +146,8 @@ do_gain_calc = false # defaults to false if not set
 <monopole_gr>
 enabled = true
 allocate_on_grid = true
-npoints = 8001
-rout = 1.
+npoints = 4000 # this should be far larger than the hydro grid (i.e. 4x)
+rout = 0.89
 # Disables time derivatives. Runs only at initialization
 force_static = false
 # Runs the first n subcycles. Then freezes. Source terms are not disabled.
@@ -162,10 +164,9 @@ dtwarn_eps = 1e-5
 
 <units>
 scale_free = false
-fluid_mass_g = 1.3140924486113762e+37
-geom_mass_g = 1.3140924486113762e+37
+fluid_mass_g = 1.5014897706552896e+37
+geom_mass_g = 1.5014897706552896e+37
 
 <progenitor>
 enabled=true
-tablepath=converted_ADM_stellartable.dat
-
+tablepath=../Data/converted_ADM_stellartable_rescaledT.dat

@@ -6,6 +6,22 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+import os, sys, re
+
+# adding a source path for documentation contained in python script docstrings
+sys.path.insert(0, os.path.join('..', '..', 'scripts', 'python', 'stellar'))
+
+# a little something extra to remove default values of args in python method signatures (cleaner visuals)
+# this might need to be removed/adjusted later on once we document the main c/c++ codebase.
+def remove_default_values(app, what, name, obj, options, signature, return_annotation):
+    if signature:
+        # strips "=something" up to the next comma or closing paren
+        signature = re.sub(r'=\s*[^,)]+', '', signature)
+    return signature, return_annotation
+
+def setup(app):
+    app.connect('autodoc-process-signature', remove_default_values)
+
 project = "Phoebus"
 copyright = "2024, Triad National Security"
 author = "The Phoebus Team"
@@ -21,6 +37,23 @@ extensions = [
     "sphinx.ext.todo",
     "sphinx_copybutton",
     "sphinx_sitemap",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.mathjax",
+    "sphinx_math_dollar",
+]
+
+# ensuring return types are always inline (rather than a separate field) for numpy-style docstrings
+napoleon_use_rtype = False
+
+# adding mock imports so autodoc doesn't crash on external dependencies/libraries
+autodoc_mock_imports = [
+    "numpy",
+    "astropy",
+    "scipy",
+    "pandas",
+    "singularity_eos",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
