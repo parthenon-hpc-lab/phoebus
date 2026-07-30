@@ -35,6 +35,7 @@ class LoadFile( argparse.Action ):
 def get_params( parser ) -> None:
 
     # ----- progenitor i/o
+    parser.add_argument('--problem', type=str, default='stellartable')
     parser.add_argument('--model-path', type=str)
     parser.add_argument('--model-name', type=str)
     parser.add_argument('--model-type', type=str)
@@ -57,7 +58,7 @@ def get_params( parser ) -> None:
 
     # ----- adm solver options
     # -- path (post progenitor), eos path, eos type
-    parser.add_argument('--adm-problem', type=str, default='stellartable')
+    # parser.add_argument('--adm-problem', type=str, default='stellartable')
     parser.add_argument('--eos-path', type=str)
     parser.add_argument('--eos-type', type=str, default='stellarcollapse')
 
@@ -111,58 +112,62 @@ def main( ):
     get_params( parser ) # getting all of the possible parameters
     params = parser.parse_args() # parameters!
 
-    # reading the intitial profile
-    if params.model_type.lower() == 'mesa':
-        if params.model_header >= 0:
-            prof_raw = get_MESA_profile( params.model_path, params.model_header, params.verbose)
-        else:
-            prof_raw = get_MESA_profile( params.model_path, verbose=params.verbose)
-    
-    elif params.model_type.lower() == 'kepler':
-        if params.model_header >= 0:
-            prof_raw = get_KEPLER_profile( params.model_path, params.model_header, params.verbose)
-        else:
-            prof_raw = get_KEPLER_profile( params.model_path, verbose=params.verbose)
-    
-    
-    elif params.model_type.lower() == 'gr1d':
-        if params.atbounce:
-            prof_raw, time = get_GR1D_profile( params.model_path, params.atbounce, verbose=params.verbose)
-    
-        else:
-            prof_raw, time = get_GR1D_profile( params.model_path, False, params.timestamp, verbose=params.verbose)
-
-        params.timestamp = time
-
-    # we leave the resolution and primitives as-is for GR1D models since they're evolved.
-    if params.model_type.lower() != 'gr1d':
+    if params.problem.lower() == 'stellarcollapse':
+        # reading the intitial profile
+        if params.model_type.lower() == 'mesa':
+            if params.model_header >= 0:
+                prof_raw = get_MESA_profile( params.model_path, params.model_header, params.verbose)
+            else:
+                prof_raw = get_MESA_profile( params.model_path, verbose=params.verbose)
         
-        # default
-        if not params.depr:
-            # interp from lagrangian to eulerian resolution (higher!)
-            prof_raw = interp_to_eulerian( prof_raw, factor=params.factor_interp, use_drad=params.use_drad_interp, drad=params.drad_interp, use_uniform=params.use_uniform, unif_max=params.unif_max )
+        elif params.model_type.lower() == 'kepler':
+            if params.model_header >= 0:
+                prof_raw = get_KEPLER_profile( params.model_path, params.model_header, params.verbose)
+            else:
+                prof_raw = get_KEPLER_profile( params.model_path, verbose=params.verbose)
+        
+        
+        elif params.model_type.lower() == 'gr1d':
+            if params.atbounce:
+                prof_raw, time = get_GR1D_profile( params.model_path, params.atbounce, verbose=params.verbose)
+        
+            else:
+                prof_raw, time = get_GR1D_profile( params.model_path, False, params.timestamp, verbose=params.verbose)
 
-        # if we're testing against deprecated methods only
-        else:
-            if params.verbose: print('>>> WARNING: using deprecated methods of subsampling, for testing only!!')
-            rad_depr = prof_raw[:, 0]
-            rad_new, factor = subsample_depr( prof_raw[:, 0], rad_depr, verbose=params.verbose, get_factor = True)
-            prof_new = np.zeros((rad_new.size, 10))
-            prof_new[:, 0] = rad_new
+            params.timestamp = time
 
-            for i in range(1, prof_raw.shape[1]):
-                prof_new[:, i] = subsample_depr( prof_raw[:, i], rad_depr, factor)
+        # we leave the resolution and primitives as-is for GR1D models since they're evolved.
+        if params.model_type.lower() != 'gr1d':
+            
+            # default
+            if not params.depr:
+                # interp from lagrangian to eulerian resolution (higher!)
+                prof_raw = interp_to_eulerian( prof_raw, factor=params.factor_interp, use_drad=params.use_drad_interp, drad=params.drad_interp, use_uniform=params.use_uniform, unif_max=params.unif_max )
 
-            prof_raw = prof_new
+            # if we're testing against deprecated methods only
+            else:
+                if params.verbose: print('>>> WARNING: using deprecated methods of subsampling, for testing only!!')
+                rad_depr = prof_raw[:, 0]
+                rad_new, factor = subsample_depr( prof_raw[:, 0], rad_depr, verbose=params.verbose, get_factor = True)
+                prof_new = np.zeros((rad_new.size, 10))
+                prof_new[:, 0] = rad_new
 
-        # weighted moving average
-        if params.wma_all:
-            for i in range(1, prof_raw.shape[1]):
-                prof_raw[:, i] = wmavg( prof_raw[:, i], params.wma_n, params.wma_exp )
+                for i in range(1, prof_raw.shape[1]):
+                    prof_new[:, i] = subsample_depr( prof_raw[:, i], rad_depr, factor)
 
-        elif params.wma_vel:
-            prof_raw[:, 1] = wmavg( prof_raw[:, 1], params.wma_n, params.wma_exp)
+                prof_raw = prof_new
 
+            # weighted moving average
+            if params.wma_all:
+                for i in range(1, prof_raw.shape[1]):
+                    prof_raw[:, i] = wmavg( prof_raw[:, i], params.wma_n, params.wma_exp )
+
+            elif params.wma_vel:
+                prof_raw[:, 1] = wmavg( prof_raw[:, 1], params.wma_n, params.wma_exp)
+
+    elif params.problem.lower() == 'homologous': # we'll just load the profile for now.
+        # TODO: add infrastructure here to actually generate the homologous model/profile, we'll need more params overall.
+        prof_raw = np.loadtxt( f'{params.model_name.lower()}_{params.model_type.lower()}.prof' )
     # make sure our save directories exists...
     if not os.path.exists( params.save_path ):
         os.makedirs( params.save_path )
@@ -176,7 +181,7 @@ def main( ):
         params.use_rhocut = True 
 
     # initialize ADM solver, solve for new profile
-    adm = ADMSolver( params.adm_problem, os.path.join(params.save_path, raw_prof_name), params.eos_path, params.eos_type, params.use_def_rad, params.use_rhocut, params.rhocut, params.use_radcut, params.radcut, params.use_custom, params.custom_min, params.custom_max, params.zones, params.interp_method, params.bc_type, params.interp_method_adm, params.iterations, params.dalpha_eps, params.extrapolate, params.verbose)
+    adm = ADMSolver( params.problem, os.path.join(params.save_path, raw_prof_name), params.eos_path, params.eos_type, params.use_def_rad, params.use_rhocut, params.rhocut, params.use_radcut, params.radcut, params.use_custom, params.custom_min, params.custom_max, params.zones, params.interp_method, params.bc_type, params.interp_method_adm, params.iterations, params.dalpha_eps, params.extrapolate, params.verbose)
     adm_prof = adm.get_final_profile()
 
     # fixup the radius (face to cell centered) and first zone of velocity 

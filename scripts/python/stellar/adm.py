@@ -171,7 +171,13 @@ class ADMSolver:
             raise UserWarning('TOV problem not currently supported for initialization. Refer to `scripts/python/grsolver` for deprecated methods.')
 
         elif self.problem == 'homologous':
-            raise UserWarning('Homologous collapse problem not currently supported for initialization. Refer to `scripts/python/grsolver` for deprecated methods.')
+            prof = np.loadtxt(self.DATPATH)
+            # ensuring we only use the default radius as input.
+            self.use_rho_cut = False
+            self.use_rad_cut = False
+            self.use_custom = False
+            self.use_def_rad = True
+            # raise UserWarning('Homologous collapse problem not currently supported for initialization. Refer to `scripts/python/grsolver` for deprecated methods.')
         
         else:
             raise UserWarning(f'{self.problem} problem is not implemented in this pipeline.')
@@ -215,6 +221,9 @@ class ADMSolver:
             
             self.rho = self.rho0 + u / c ** 2.0  # energy density
 
+        elif self.problem == 'homologous':
+            u = self.rho0 * eps
+            self.rho = self.rho0 + u / c ** 2.0
         # the rest of our data will need interpolators to map to the new phoebus grid
         self.v_int      = self.interp( vel )
         self.rho_int    = self.interp( self.rho ) # energy density, GR naming convention
@@ -273,8 +282,11 @@ class ADMSolver:
                 * (self.grid[i] + self.r0 - abs(self.grid[i] - self.r0))
             )
 
-            phi[i] = np.trapezoid(I, x=self.r0)
-                
+            try:
+                phi[i] = np.trapezoid(I, x=self.r0)
+            except:
+                phi[i] = np.trapz(I, x=self.r0)
+
         dphi = np.gradient(phi, self.grid)
 
         # we find alpha^2, a^2 using the metric in the sph. symm., weak field (newtonian) limit and the metric in eq. 15 of Barker et al. 2024
