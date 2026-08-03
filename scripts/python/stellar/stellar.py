@@ -16,6 +16,8 @@ from progenitors import get_MESA_profile, get_KEPLER_profile, get_GR1D_profile
 from progenitors import wmavg, interp_to_eulerian, fixup_rad_vel
 from progenitors import save_raw_profile, save_ADM_profile
 
+from homologous import gen_homologous_goldreich, gen_homologous_eos
+
 # deprecated, for testing only
 from progenitors import subsample_depr
 
@@ -36,7 +38,7 @@ def get_params( parser ) -> None:
 
     # ----- progenitor i/o
     parser.add_argument('--problem', type=str, default='stellartable')
-    parser.add_argument('--model-path', type=str)
+    parser.add_argument('--model-path', type=str, default='')
     parser.add_argument('--model-name', type=str)
     parser.add_argument('--model-type', type=str)
     parser.add_argument('--model-header', type=int, default=-1)
@@ -56,9 +58,18 @@ def get_params( parser ) -> None:
     parser.add_argument('--use-uniform', action = 'store_true', default=False)
     parser.add_argument('--unif-max', type=float, default=5e9)
 
+    # ----- homologous collapse generation
+    parser.add_argument('--homologous-type', type = str, default = 'gw')
+    parser.add_argument('--homologous-mass', type = float, default = 1.4)
+    parser.add_argument('--homologous-rad', type = float, default = 3.8e8)
+    parser.add_argument('--homologous-rmin', type = float, default = 0.001)
+    parser.add_argument('--homologous-rmax', type = float, default = 10.0)
+    parser.add_argument('--homologous-lambda', type = float, default = 0.002)
+    parser.add_argument('--homologous-gamma', type = float, default = 4.0/3.0)
+    parser.add_argument('--homologous-temp', type = float, default = 6.0e9)
+
     # ----- adm solver options
     # -- path (post progenitor), eos path, eos type
-    # parser.add_argument('--adm-problem', type=str, default='stellartable')
     parser.add_argument('--eos-path', type=str)
     parser.add_argument('--eos-type', type=str, default='stellarcollapse')
 
@@ -88,6 +99,9 @@ def get_params( parser ) -> None:
 
     # ----- FLASH-style fixup, velocity and radius
     parser.add_argument('--do-fixup', action = 'store_true', default=False)
+
+    # ----- do we convert to phoebus code units?
+    parser.add_argument('--do-scale-free', action = 'store_true', default=False)
 
     # ----- saving files
     parser.add_argument('--save-path', type=str, default='')
@@ -165,9 +179,22 @@ def main( ):
             elif params.wma_vel:
                 prof_raw[:, 1] = wmavg( prof_raw[:, 1], params.wma_n, params.wma_exp)
 
-    elif params.problem.lower() == 'homologous': # we'll just load the profile for now.
-        # TODO: add infrastructure here to actually generate the homologous model/profile, we'll need more params overall.
-        prof_raw = np.loadtxt( f'{params.model_name.lower()}_{params.model_type.lower()}.prof' )
+    elif params.problem.lower() == 'homologous':
+        if params.homologous_type.lower() == 'gw':
+            prof_raw = gen_homologous_goldreich( params.homologous_mass, params.homologous_rad, params.homologous_lambda, params.homologous_rmin, params.homologous_rmax, params.zones, params.homologous_gamma, params.verbose)
+
+        elif params.homologous_type.lower() == 'gw-eos':
+            prof_raw = gen_homologous_eos( params.eos_path, params.eos_type, params.homologous_temp, params.homologous_mass, params.homologous_rad, params.homologous_lambda, params.homologous_rmin, params.homologous_rmax, params.zones, params.verbose)
+
+        elif params.homologous_type.lower() == 'yahil':
+            raise UserWarning(f'Yahil (1983) homologous collapse is not yet implemented in this pipeline.')
+        else:
+            raise UserWarning(f'{params.homologous_type} homologous collapse is not implemented in this pipeline.')
+    
+    # error handling if user doesn't input stellartable or homologous as desired problem (e.g. tov)
+    else:
+        raise UserWarning(f'{params.problem} problem is not implemented in this pipeline.')
+    
     # make sure our save directories exists...
     if not os.path.exists( params.save_path ):
         os.makedirs( params.save_path )
@@ -194,7 +221,7 @@ def main( ):
         os.remove( os.path.join( params.save_path, raw_prof_name) )
 
     # optional: make summary file
-    save_ADM_profile( adm_prof, params.model_name, params.model_type, params.eos_path, params.eos_type, params.timestamp, params.save_path, params.save_unconverted, params.save_info, params.verbose)
+    save_ADM_profile( adm_prof, params.model_name, params.model_type, params.eos_path, params.eos_type, params.timestamp, params.save_path, params.save_unconverted, params.save_info, params.do_scale_free, params.verbose)
 
     # optional: saving input file in same output directory for later (optional)
     if params.save_input:

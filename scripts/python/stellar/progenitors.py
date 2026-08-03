@@ -414,7 +414,7 @@ def save_raw_profile( prof: np.ndarray, model_name: str, model_type: str, time: 
     if verbose: print(f'>>> saved raw profile from {model_type.upper()} model `{model_name}` at time {time:.4f} s to {OUTPATH}.')
 
 
-def save_ADM_profile( prof: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type: str = 'stellarcollapse', time: float = 0.0, OUTPATH: str = '', save_unconverted: bool = True, save_info: bool = True, verbose: bool = False ):
+def save_ADM_profile( prof: np.ndarray, model_name: str, model_type: str, EOSPATH: str, eos_type: str = 'stellarcollapse', time: float = 0.0, OUTPATH: str = '', save_unconverted: bool = True, save_info: bool = True, scale_free = False, verbose: bool = False ):
 
     r'''
     Saves a processed, post-ADM, converted (code units) ``phoebus`` input profile to a ASCII- and numpy-readable file (with nice formatting). Also saves:
@@ -437,6 +437,7 @@ def save_ADM_profile( prof: np.ndarray, model_name: str, model_type: str, EOSPAT
         OUTPATH (str, optional): Desired directory to save file(s) in. Default is current working directory.
         save_unconverted (bool, optional): If enabled, saves profile in cgs units. Defaults to True.
         save_info (bool, optional): If enabled, saves info file with characteristic values, conversions, and bounds. Defaults to True.
+        scale_free (bool, optional): If enabled, saves profile as scale free instead of converted (e.g. with input units, not code units).
         verbose (bool, optional): Enables command line output. Defaults to False.
         
     '''
@@ -447,7 +448,7 @@ def save_ADM_profile( prof: np.ndarray, model_name: str, model_type: str, EOSPAT
     tup_header_conv = ( 'radius', 'density', 'temperature',  'ye', 'sie', 'velocity','pressure', 'density [ADM]', 'momentum [ADM]', 'S [ADM]', 'S^r_r [ADM]')
     
     # saves the unconverted profile with primitives + ADM quantities
-    if save_unconverted:
+    if save_unconverted or scale_free:
         np.savetxt(
             os.path.join(OUTPATH, f'{model_name}_{model_type.lower()}_adm.prof'),
             prof,
@@ -465,14 +466,16 @@ def save_ADM_profile( prof: np.ndarray, model_name: str, model_type: str, EOSPAT
     if save_info:
         make_info_file( rhoc, M0, R0, prof_conv, model_name, model_type, EOSPATH, eos_type, OUTPATH)
 
-    # saves the converted profile
-    np.savetxt(
-        os.path.join(OUTPATH, f'{model_name}_{model_type.lower()}_adm_converted.prof'),
-        prof_conv,
-        delimiter   ='\t',
-        fmt         = '%20.15e',
-        header      = f'converted primitives + ADM for {model_type.upper()} profile from model `{model_name}` at time {time:.4f} s.\n{fmt_header % tup_header_conv}'
-    )
+    # saves the converted profile 
+    if not scale_free:
+        np.savetxt(
+            os.path.join(OUTPATH, f'{model_name}_{model_type.lower()}_adm_converted.prof'),
+            prof_conv,
+            delimiter   ='\t',
+            fmt         = '%20.15e',
+            header      = f'converted primitives + ADM for {model_type.upper()} profile from model `{model_name}` at time {time:.4f} s.\n{fmt_header % tup_header_conv}'
+        )
+
     if verbose: print(f'>>> saved converted primitive + ADM profile from {model_type.upper()} model `{model_name}` at time {time:.4f} s to {OUTPATH}.')
 
 
