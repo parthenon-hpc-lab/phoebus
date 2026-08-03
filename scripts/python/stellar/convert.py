@@ -130,19 +130,20 @@ def make_info_file( rhoc: float, M0: float, R0: float, prof_conv: np.ndarray, mo
         fout.write(fmt % (np.max(prof_conv[:, 4]), 'maximum sie'))
         fout.write('\n')
 
-        # --- eos bounds
-        bounds = get_eos_bounds(EOSPATH, eos_type)
+        # --- eos bounds >> we should only write these for tabulated equations of state
+        if eos_type.lower() == 'stellarcollapse' or eos_type.lower() == 'helmholtz':
+            bounds = get_eos_bounds(EOSPATH, eos_type)
 
-        fout.write('# -----bounds, equation of state [phb]\n')
-        fout.write(fmt % (bounds[0] / (1 / ((c**2.0) / G / M0)), 'minimum density'))
-        fout.write(fmt % (bounds[1] / (1 / ((c**2.0) / G / M0)), 'maximum density'))
-        fout.write(fmt % (bounds[2] * kB, 'minimum temperature'))
-        fout.write(fmt % (bounds[3] * kB, 'maximum temperature'))
-        fout.write(fmt % (bounds[4] / (c**2.0), 'minimum sie'))
-        fout.write(fmt % (bounds[5] / (c**2.0), 'maximum sie'))
-        fout.write(fmt % (bounds[6], 'minimum ye'))
-        fout.write(fmt % (bounds[7], 'maximum ye'))
-        fout.write('\n')
+            fout.write('# -----bounds, equation of state [phb]\n')
+            fout.write(fmt % (bounds[0] / (1 / ((c**2.0) / G / M0)), 'minimum density'))
+            fout.write(fmt % (bounds[1] / (1 / ((c**2.0) / G / M0)), 'maximum density'))
+            fout.write(fmt % (bounds[2] * kB, 'minimum temperature'))
+            fout.write(fmt % (bounds[3] * kB, 'maximum temperature'))
+            fout.write(fmt % (bounds[4] / (c**2.0), 'minimum sie'))
+            fout.write(fmt % (bounds[5] / (c**2.0), 'maximum sie'))
+            fout.write(fmt % (bounds[6], 'minimum ye'))
+            fout.write(fmt % (bounds[7], 'maximum ye'))
+            fout.write('\n')
 
         # --- conversion factors
         fout.write(

@@ -18,7 +18,7 @@ G = const.G.cgs.value
 c = const.c.cgs.value
 msun = const.M_sun.cgs.value
 
-def gen_homologous_goldreich( M: float = 1.4, R: float = 3.8e8, lmbda: float = 0.002, rmin: float = 0.001, rmax: float = 10.0, zones: int = 10000, gamma: float = 4.0/3.0, verbose: bool = True):
+def gen_homologous_goldreich( M: float = 1.4, R: float = 3.0e8, lmbda: float = 0.002, rmin: float = 0.001, rmax: float = 10.0, zones: int = 10000, gamma: float = 4.0/3.0, verbose: bool = True):
     
     M *= msun
     rs = np.linspace(rmin, rmax, zones)
@@ -28,7 +28,7 @@ def gen_homologous_goldreich( M: float = 1.4, R: float = 3.8e8, lmbda: float = 0
     k = CalculateK(M, f, r)
     a, adot = FindJeansLength(r, R, lmbda, k)
 
-    vel = CalculateVelocity(r, adot)
+    vel = -1.0 * CalculateVelocity(r, adot) # we want the profile falling inwards
     rho = CalculateDensity(a, f, k)
     eps = CalculateSpecificInternalEnergy(rho, k, gamma)
     press = CalculatePressure(rho, k, gamma)
@@ -58,7 +58,7 @@ def gen_homologous_goldreich( M: float = 1.4, R: float = 3.8e8, lmbda: float = 0
 
     return prof
 
-def gen_homologous_eos( EOSPATH: str, eostype: str = 'stellarcollapse', T0: float = 6.5e9, M: float = 1.4, R: float = 3.8e8, lmbda: float = 0.002, rmin: float = 0.001, rmax: float = 10.0, zones: int = 10000, verbose: bool = True ):
+def gen_homologous_eos( EOSPATH: str, eostype: str = 'stellarcollapse', T0: float = 6.5e9, M: float = 1.4, R: float = 3.0e8, lmbda: float = 0.002, rmin: float = 0.001, rmax: float = 10.0, zones: int = 10000, verbose: bool = True ):
     
     if eostype.lower() == 'stellarcollapse':
         eos = StellarCollapse( EOSPATH )

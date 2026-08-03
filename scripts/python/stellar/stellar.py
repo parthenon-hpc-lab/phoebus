@@ -61,7 +61,7 @@ def get_params( parser ) -> None:
     # ----- homologous collapse generation
     parser.add_argument('--homologous-type', type = str, default = 'gw')
     parser.add_argument('--homologous-mass', type = float, default = 1.4)
-    parser.add_argument('--homologous-rad', type = float, default = 3.8e8)
+    parser.add_argument('--homologous-rad', type = float, default = 3.0e8)
     parser.add_argument('--homologous-rmin', type = float, default = 0.001)
     parser.add_argument('--homologous-rmax', type = float, default = 10.0)
     parser.add_argument('--homologous-lambda', type = float, default = 0.002)
@@ -70,7 +70,7 @@ def get_params( parser ) -> None:
 
     # ----- adm solver options
     # -- path (post progenitor), eos path, eos type
-    parser.add_argument('--eos-path', type=str)
+    parser.add_argument('--eos-path', type=str, default='')
     parser.add_argument('--eos-type', type=str, default='stellarcollapse')
 
     # -- grid construction methods
@@ -180,13 +180,16 @@ def main( ):
                 prof_raw[:, 1] = wmavg( prof_raw[:, 1], params.wma_n, params.wma_exp)
 
     elif params.problem.lower() == 'homologous':
+
         if params.homologous_type.lower() == 'gw':
+            params.eos_type = 'ideal_gas'
             prof_raw = gen_homologous_goldreich( params.homologous_mass, params.homologous_rad, params.homologous_lambda, params.homologous_rmin, params.homologous_rmax, params.zones, params.homologous_gamma, params.verbose)
 
         elif params.homologous_type.lower() == 'gw-eos':
             prof_raw = gen_homologous_eos( params.eos_path, params.eos_type, params.homologous_temp, params.homologous_mass, params.homologous_rad, params.homologous_lambda, params.homologous_rmin, params.homologous_rmax, params.zones, params.verbose)
 
         elif params.homologous_type.lower() == 'yahil':
+            params.eos_type = 'ideal_gas'
             raise UserWarning(f'Yahil (1983) homologous collapse is not yet implemented in this pipeline.')
         else:
             raise UserWarning(f'{params.homologous_type} homologous collapse is not implemented in this pipeline.')
