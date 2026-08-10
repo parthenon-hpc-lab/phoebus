@@ -177,7 +177,8 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
       });
 
   // Light Bulb with Liebendorfer model
-  const bool do_liebendorfer = rad->Param<bool>("do_liebendorfer");
+  const bool do_delep = rad->Param<bool>("do_delep");
+  const std::string delep_method = rad->Param<std::string>("delep_method");
   const bool do_lightbulb = rad->Param<bool>("do_lightbulb");
   const bool do_gain_calc = rad->Param<bool>("do_gain_calc");
 
@@ -216,46 +217,75 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
           Real Jye = 0.0;
           Real J;
           const Real lRho = std::log10(rho);
-          const Real lRho2 = lRho * lRho;
-          const Real lRho3 = lRho2 * lRho;
-          const Real lRho4 = lRho2 * lRho2;
-          const Real lRho5 = lRho4 * lRho;
-          const Real lRho6 = lRho3 * lRho3;
-          constexpr Real lRhoMin = LightBulb::Liebendorfer::LRHOMIN;
-          constexpr Real lRhoMax = LightBulb::Liebendorfer::LRHOMAX;
-          bool do_densityregion = (lRhoMin <= lRho && lRho <= lRhoMax); // better name?
           constexpr Real rnorm = LightBulb::HeatAndCool::RNORM;
           constexpr Real MeVToCGS = 1.16040892301e10;
           constexpr Real Tnorm = 2.0 * MeVToCGS;
 
           Real Ye = v(b, p::ye(), k, j, i);
 
-          if (do_liebendorfer) {
-            constexpr Real Ye_beta = 0.27;
-            constexpr Real Ye_floor = 0.05;
-            constexpr Real a0 = LightBulb::Liebendorfer::A0;
-            constexpr Real a1 = LightBulb::Liebendorfer::A1;
-            constexpr Real a2 = LightBulb::Liebendorfer::A2;
-            constexpr Real a3 = LightBulb::Liebendorfer::A3;
-            constexpr Real a4 = LightBulb::Liebendorfer::A4;
-            constexpr Real a5 = LightBulb::Liebendorfer::A5;
-            constexpr Real a6 = LightBulb::Liebendorfer::A6;
+          if (do_delep) {
 
-            if (do_densityregion) {
-              const Real Ye_fit = (a0 + a1 * lRho + a2 * lRho2 + a3 * lRho3 + a4 * lRho4 +
-                                   a5 * lRho5 + a6 * lRho6);
-              Real dYe = std::max(-0.05 * Ye, std::min(0.0, Ye_fit - Ye));
-              if (rho < 3.e8) { // impose plateau Ye for low densities
-                dYe = dYe * (rho - 1.e8) / 2.e8;
+            if (delep_method == "rho_fit") {
+
+              const Real lRho2 = lRho * lRho;
+              const Real lRho3 = lRho2 * lRho;
+              const Real lRho4 = lRho2 * lRho2;
+              const Real lRho5 = lRho4 * lRho;
+              const Real lRho6 = lRho3 * lRho3;
+              constexpr Real lRhoMin = LightBulb::LogRhoFit::LRHOMIN;
+              constexpr Real lRhoMax = LightBulb::LogRhoFit::LRHOMAX;
+              bool do_densityregion = (lRhoMin <= lRho && lRho <= lRhoMax); // better name?
+              
+              constexpr Real Ye_beta = 0.27;
+              constexpr Real Ye_floor = 0.05;
+              constexpr Real a0 = LightBulb::LogRhoFit::A0;
+              constexpr Real a1 = LightBulb::LogRhoFit::A1;
+              constexpr Real a2 = LightBulb::LogRhoFit::A2;
+              constexpr Real a3 = LightBulb::LogRhoFit::A3;
+              constexpr Real a4 = LightBulb::LogRhoFit::A4;
+              constexpr Real a5 = LightBulb::LogRhoFit::A5;
+              constexpr Real a6 = LightBulb::LogRhoFit::A6;
+
+              if (do_densityregion) {
+                const Real Ye_fit = (a0 + a1 * lRho + a2 * lRho2 + a3 * lRho3 + a4 * lRho4 +
+                                    a5 * lRho5 + a6 * lRho6);
+                Real dYe = std::max(-0.05 * Ye, std::min(0.0, Ye_fit - Ye));
+                if (rho < 3.e8) { // impose plateau Ye for low densities
+                  dYe = dYe * (rho - 1.e8) / 2.e8;
+                }
+                if (Ye < Ye_beta) {
+                  dYe = 0;
+                }
+                Jye = dYe / dt * cdensity;
+              } else {
+                Jye = 0.0;
               }
-              if (Ye < Ye_beta) {
-                dYe = 0;
+
+            } else if (delep_method == "g15" || delep_method == "n13") {
+
+              Real lr1, y2;
+              constexpr Real lr2 = LightBulb::Liebendorfer::LR2;
+              constexpr Real y1 = LightBulb::Liebendorfer::Y1;
+              constexpr Real yc = LightBulb::Liebendorfer::YC;
+
+              if (delep_method == "g15") {
+                lr1 = LightBulb::Liebendorfer::LR1_G15;
+                y2 = LightBulb::Liebendorfer::Y2_G15;
+              } else {
+                lr1 = LightBulb::Liebendorfer::LR1_N13;
+                y2 = LightBulb::Liebendorfer::Y2_N13;
               }
+
+              const Real x = std::max( -1, std::min( 1, (2 * lRho - lr2 - lr1) / (lr2 - lr1) ));
+              const Real xa = std::abs(x);
+              const Real Ye_fit = (0.5 * (y2 + y1)) + 
+                                  ((0.5 * x) * (y2 - y1)) +
+                                  (yc * (1 - xa + (4 * xa) * (xa - 0.5) * (xa - 1)));
+
+              Real dYe = std::min(0.0, Ye_fit - Ye);
               Jye = dYe / dt * cdensity;
-            } else {
-              Jye = 0.0;
-            }
           }
+
           Real heat;
           Real cool;
           const Real tau = v(b, iv::tau(), k, j, i);
