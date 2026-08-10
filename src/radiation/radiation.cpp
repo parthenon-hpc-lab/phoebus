@@ -133,13 +133,13 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
 
     // adding an option to switch between deleptonization prescriptions 
     // e.g. 6th order density fit, liebendorfer (g15 or n13)
-    const std::string delep_method = pin->GetOrAddString( "radiation", "delep_method", "g15");
+    const std::string delep_method = pin->GetOrAddString( "radiation", "delep_method", "liebendorfer_g15");
 
     // error checks and handling
-    std::set<std::string> known_delep_methods = {"rho_fit", "g15", "n13"};
+    std::set<std::string> known_delep_methods = {"rho_fit", "liebendorfer_g15", "liebendorfer_n13"};
     if (!known_delep_methods.count(delep_method)) {
       std::stringstream msg;
-      msg << "Deleptonization method \"" << method << "\" not recognized!";
+      msg << "Deleptonization method \"" << delep_method << "\" not recognized!";
       PARTHENON_THROW(msg);
     }
 

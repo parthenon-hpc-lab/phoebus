@@ -261,14 +261,14 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
                 Jye = 0.0;
               }
 
-            } else if (delep_method == "g15" || delep_method == "n13") {
+            } else if (delep_method == "liebendorfer_g15" || delep_method == "liebendorfer_n13") {
 
               Real lr1, y2;
               constexpr Real lr2 = LightBulb::Liebendorfer::LR2;
               constexpr Real y1 = LightBulb::Liebendorfer::Y1;
               constexpr Real yc = LightBulb::Liebendorfer::YC;
 
-              if (delep_method == "g15") {
+              if (delep_method == "liebendorfer_g15") {
                 lr1 = LightBulb::Liebendorfer::LR1_G15;
                 y2 = LightBulb::Liebendorfer::Y2_G15;
               } else {
@@ -276,7 +276,7 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
                 y2 = LightBulb::Liebendorfer::Y2_N13;
               }
 
-              const Real x = std::max( -1, std::min( 1, (2 * lRho - lr2 - lr1) / (lr2 - lr1) ));
+              const Real x = std::max( -1.0, std::min( 1.0, (2 * lRho - lr2 - lr1) / (lr2 - lr1) ));
               const Real xa = std::abs(x);
               const Real Ye_fit = (0.5 * (y2 + y1)) + 
                                   ((0.5 * x) * (y2 - y1)) +
@@ -284,6 +284,7 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
 
               Real dYe = std::min(0.0, Ye_fit - Ye);
               Jye = dYe / dt * cdensity;
+            }
           }
 
           Real heat;

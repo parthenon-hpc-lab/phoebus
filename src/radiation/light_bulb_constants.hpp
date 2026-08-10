@@ -30,8 +30,8 @@ constexpr Real LRHOMAX = 13.;
 
 namespace Liebendorfer {
 // log rho parameters
-constexpr Real LR1_G15 = std::log10(2.0e7);
-constexpr Real LR1_N13 = std::log10(3.0e7);
+constexpr Real LR1_G15 = std::log10(3.0e7);
+constexpr Real LR1_N13 = std::log10(2.0e7);
 constexpr Real LR2 = std::log10(2.0e13);
 // ye parameters
 constexpr Real Y1 = 0.5;

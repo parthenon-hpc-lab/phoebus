@@ -138,10 +138,11 @@ gam0_ceiling = 1.0e4
 # simple example for lightbulb case
 <radiation> 
 cfl = 0.5 
-method = cooling_function
+method 			= cooling_function
 do_lightbulb 	= true
-do_liebendorfer	= true
-do_gain_calc = false # defaults to false if not set
+do_delep		= true
+delep_method 	= liebendorfer_g15 # options are rho_fit, liebendorfer_g15 (default), and liebendorfer_n13
+do_gain_calc 	= false # defaults to false if not set
 
 <monopole_gr>
 enabled = true
