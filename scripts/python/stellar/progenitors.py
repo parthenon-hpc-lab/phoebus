@@ -463,7 +463,7 @@ def save_ADM_profile( prof: np.ndarray, model_name: str, model_type: str, EOSPAT
 
     # creates a summary/info file with useful conversions and progenitor bounds
     if save_info:
-        make_info_file( rhoc, M0, R0, profile_conv, model_name, model_type, EOSPATH, eos_type, OUTPATH)
+        make_info_file( rhoc, M0, R0, prof_conv, model_name, model_type, EOSPATH, eos_type, OUTPATH)
 
     # saves the converted profile
     np.savetxt(
