@@ -234,8 +234,9 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
               const Real lRho6 = lRho3 * lRho3;
               constexpr Real lRhoMin = LightBulb::LogRhoFit::LRHOMIN;
               constexpr Real lRhoMax = LightBulb::LogRhoFit::LRHOMAX;
-              bool do_densityregion = (lRhoMin <= lRho && lRho <= lRhoMax); // better name?
-              
+              bool do_densityregion =
+                  (lRhoMin <= lRho && lRho <= lRhoMax); // better name?
+
               constexpr Real Ye_beta = 0.27;
               constexpr Real Ye_floor = 0.05;
               constexpr Real a0 = LightBulb::LogRhoFit::A0;
@@ -247,8 +248,8 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
               constexpr Real a6 = LightBulb::LogRhoFit::A6;
 
               if (do_densityregion) {
-                const Real Ye_fit = (a0 + a1 * lRho + a2 * lRho2 + a3 * lRho3 + a4 * lRho4 +
-                                    a5 * lRho5 + a6 * lRho6);
+                const Real Ye_fit = (a0 + a1 * lRho + a2 * lRho2 + a3 * lRho3 +
+                                     a4 * lRho4 + a5 * lRho5 + a6 * lRho6);
                 Real dYe = std::max(-0.05 * Ye, std::min(0.0, Ye_fit - Ye));
                 if (rho < 3.e8) { // impose plateau Ye for low densities
                   dYe = dYe * (rho - 1.e8) / 2.e8;
@@ -261,7 +262,8 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
                 Jye = 0.0;
               }
 
-            } else if (delep_method == "liebendorfer_g15" || delep_method == "liebendorfer_n13") {
+            } else if (delep_method == "liebendorfer_g15" ||
+                       delep_method == "liebendorfer_n13") {
 
               Real lr1, y2;
               constexpr Real lr2 = LightBulb::Liebendorfer::LR2;
@@ -276,10 +278,10 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
                 y2 = LightBulb::Liebendorfer::Y2_N13;
               }
 
-              const Real x = std::max( -1.0, std::min( 1.0, (2 * lRho - lr2 - lr1) / (lr2 - lr1) ));
+              const Real x =
+                  std::max(-1.0, std::min(1.0, (2 * lRho - lr2 - lr1) / (lr2 - lr1)));
               const Real xa = std::abs(x);
-              const Real Ye_fit = (0.5 * (y2 + y1)) + 
-                                  ((0.5 * x) * (y2 - y1)) +
+              const Real Ye_fit = (0.5 * (y2 + y1)) + ((0.5 * x) * (y2 - y1)) +
                                   (yc * (1 - xa + (4 * xa) * (xa - 0.5) * (xa - 1)));
 
               Real dYe = std::min(0.0, Ye_fit - Ye);

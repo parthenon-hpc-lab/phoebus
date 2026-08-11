@@ -131,12 +131,14 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   if (method == "cooling_function") {
     const bool do_delep = pin->GetOrAddBoolean("radiation", "do_delep", true);
 
-    // adding an option to switch between deleptonization prescriptions 
+    // adding an option to switch between deleptonization prescriptions
     // e.g. 6th order density fit, liebendorfer (g15 or n13)
-    const std::string delep_method = pin->GetOrAddString( "radiation", "delep_method", "liebendorfer_g15");
+    const std::string delep_method =
+        pin->GetOrAddString("radiation", "delep_method", "liebendorfer_g15");
 
     // error checks and handling
-    std::set<std::string> known_delep_methods = {"rho_fit", "liebendorfer_g15", "liebendorfer_n13"};
+    std::set<std::string> known_delep_methods = {"rho_fit", "liebendorfer_g15",
+                                                 "liebendorfer_n13"};
     if (!known_delep_methods.count(delep_method)) {
       std::stringstream msg;
       msg << "Deleptonization method \"" << delep_method << "\" not recognized!";
