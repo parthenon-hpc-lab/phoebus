@@ -15,7 +15,8 @@
 #define LIGHT_BULB_CONSTANTS_HPP_
 
 namespace LightBulb {
-namespace Liebendorfer {
+
+namespace LogRhoFit {
 constexpr Real A0 = 2.120282875020e+02;
 constexpr Real A1 = -1.279083733386e+02;
 constexpr Real A2 = 3.199984467460e+01;
@@ -25,6 +26,18 @@ constexpr Real A5 = -1.226365543366e-02;
 constexpr Real A6 = 1.983947360151e-04;
 constexpr Real LRHOMIN = 8.;
 constexpr Real LRHOMAX = 13.;
+} // namespace LogRhoFit
+
+namespace Liebendorfer {
+// log rho parameters
+constexpr Real LR1_G15 = std::log10(3.0e7);
+constexpr Real LR1_N13 = std::log10(2.0e7);
+constexpr Real LR2 = std::log10(2.0e13);
+// ye parameters
+constexpr Real Y1 = 0.5;
+constexpr Real Y2_G15 = 0.278;
+constexpr Real Y2_N13 = 0.285;
+constexpr Real YC = 0.035;
 } // namespace Liebendorfer
 
 namespace HeatAndCool {

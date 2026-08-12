@@ -129,11 +129,27 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
 
   bool do_lightbulb = false;
   if (method == "cooling_function") {
-    const bool do_liebendorfer =
-        pin->GetOrAddBoolean("radiation", "do_liebendorfer", false);
+    const bool do_delep = pin->GetOrAddBoolean("radiation", "do_delep", true);
+
+    // adding an option to switch between deleptonization prescriptions
+    // e.g. 6th order density fit, liebendorfer (g15 or n13)
+    const std::string delep_method =
+        pin->GetOrAddString("radiation", "delep_method", "liebendorfer_g15");
+
+    // error checks and handling
+    std::set<std::string> known_delep_methods = {"rho_fit", "liebendorfer_g15",
+                                                 "liebendorfer_n13"};
+    if (!known_delep_methods.count(delep_method)) {
+      std::stringstream msg;
+      msg << "Deleptonization method \"" << delep_method << "\" not recognized!";
+      PARTHENON_THROW(msg);
+    }
+
     bool do_lightbulb = pin->GetOrAddBoolean("radiation", "do_lightbulb", false);
     const Real lum = pin->GetOrAddReal("radiation", "lum", 4.0);
-    params.Add("do_liebendorfer", do_liebendorfer);
+
+    params.Add("do_delep", do_delep);
+    params.Add("delep_method", delep_method);
     params.Add("do_lightbulb", do_lightbulb);
     params.Add("lum", lum);
     if (do_lightbulb) {
