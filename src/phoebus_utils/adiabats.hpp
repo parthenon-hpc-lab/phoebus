@@ -108,6 +108,31 @@ inline void ComputeAdiabats(DataBox lrho, DataBox temp, const EOS &eos, const Re
 }
 
 /**
+ * Given Ye and a target entropy, compute density and temperature of constant entropy 
+ * (for singular values of rho, T only).
+ **/
+template <typename EOS>
+inline void ComputeAdiabats(Real lrho, Real temp, const EOS &eos, const Real Ye,
+                            const Real S0, const Real T_min, const Real T_max) {
+
+  const Real guess0 = (T_max - T_min) / 2.0;
+  const Real epsilon = std::numeric_limits<Real>::epsilon();
+
+  const Real Rho = std::pow(10.0, lrho(i));
+  Real lambda[2];
+  lambda[0] = Ye;
+
+  auto target = [&](const Real T) {
+    return eos.EntropyFromDensityTemperature(Rho, T, lambda) - S0;
+  };
+
+  const Real guess = guess0;
+  root_find::RootFind root_find;
+  temp(i) = root_find.regula_falsi(target, T_min, T_max, epsilon * guess, guess);
+
+}
+
+/**
  * Find the minimum enthalpy along an adiabat as computed above
  **/
 template <typename EOS>

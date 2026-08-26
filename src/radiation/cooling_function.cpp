@@ -15,6 +15,7 @@
 #include "geometry/geometry_utils.hpp"
 #include "light_bulb_constants.hpp"
 #include "phoebus_utils/variables.hpp"
+#include "phoebus_utils/adiabats.hpp"
 #include "radiation.hpp"
 #include <algorithm>
 #include <interface/sparse_pack.hpp>
@@ -178,6 +179,7 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
 
   // Light Bulb with Liebendorfer model
   const bool do_delep = rad->Param<bool>("do_delep");
+  const bool do_delep = rad->Param<bool>("do_delep_entropy");
   const std::string delep_method = rad->Param<std::string>("delep_method");
   const bool do_lightbulb = rad->Param<bool>("do_lightbulb");
   const bool do_gain_calc = rad->Param<bool>("do_gain_calc");
@@ -222,6 +224,8 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
           constexpr Real Tnorm = 2.0 * MeVToCGS;
 
           Real Ye = v(b, p::ye(), k, j, i);
+          Real lambda[2];
+          lambda[0] = Ye;
 
           if (do_delep) {
 
@@ -287,6 +291,25 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
               Real dYe = std::min(0.0, Ye_fit - Ye);
               Jye = dYe / dt * cdensity;
             }
+
+            // now we add the entropy update (eq. 5, liebendorfer 2005)
+            if ( do_delep_entropy ) {
+
+              Real dS, S0;
+              Real drho, dT;
+              Real mu_e, mu_p, mu_n; // chemical potentials, we'll get from singularity
+              Real garbage;
+              const Real E_esc = rad->Param<Real>("E_esc"); // escape energy param., in MeV
+
+              eos_sc.ChemicalPotentialsFromDensityTemperature(rho, v(b, p::temperature(), k, j, i) * temperature_conversion_factor, mu_e, mu_n, mu_p, garbage, garbage, lambda );
+
+              S0 = eos_sc.EntropyFromDensityTemperature(rho, v(b, p::temperature(), k, j, i) * temperature_conversion_factor, lambda);
+              // TODO: check the units on below...
+              dS = robust::ratio(-dYe * (mu_e - mu_n + mu_p - E_esc), v(b, p::temperature(), k, j, i) * temperature_conversion_factor );
+              
+              // TODO: add implementation of ~ComputeAdiabats here, need to adjust in phoebus_utils/adiabats.hpp...
+              // update density, temperature primitives (?)
+            }
           }
 
           Real heat;
@@ -295,8 +318,7 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
           const Real hfac = LightBulb::HeatAndCool::HFAC * lum;
           const Real cfac = LightBulb::HeatAndCool::CFAC;
           Real Xa, Xh, Xn, Xp, Abar, Zbar;
-          Real lambda[2];
-          lambda[0] = Ye;
+
           eos_sc.MassFractionsFromDensityTemperature(
               rho, v(b, p::temperature(), k, j, i) * temperature_conversion_factor, Xa,
               Xh, Xn, Xp, Abar, Zbar, lambda);
