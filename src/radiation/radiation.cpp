@@ -132,7 +132,7 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
     const bool do_delep = pin->GetOrAddBoolean("radiation", "do_delep", true);
     // enables liebendorfer entropy evolution (through drho, dT)
     const bool do_delep_entropy =
-        pin->GetOrAddBoolean("radiation", "do_delep_entropy", true);
+        pin->GetOrAddBoolean("radiation", "do_delep_entropy", false);
     const Real E_nu = pin->GetOrAddReal("radiation", "delep_Enu", 10.0); // MeV
 
     // adding an option to switch between deleptonization prescriptions

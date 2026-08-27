@@ -344,7 +344,6 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
 
                 // final temperature update - should this be done after lightbulb?
                 v(b, p::temperature(), k, j, i) = dT / temperature_conversion_factor;
-                printf("dS:\t%5.8e\t\tdT:\t%5.8e\n", dS, dT - T0);
               }
             }
           }
