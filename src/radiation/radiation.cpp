@@ -133,7 +133,7 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
     // enables liebendorfer entropy evolution (through drho, dT)
     const bool do_delep_entropy =
         pin->GetOrAddBoolean("radiation", "do_delep_entropy", true);
-    const Real E_esc = pin->GetOrAddReal("radiation", "E_esc", 10.0); // MeV
+    const Real E_nu = pin->GetOrAddReal("radiation", "delep_Enu", 10.0); // MeV
 
     // adding an option to switch between deleptonization prescriptions
     // e.g. 6th order density fit, liebendorfer (g15 or n13)
@@ -154,7 +154,7 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
 
     params.Add("do_delep", do_delep);
     params.Add("do_delep_entropy", do_delep_entropy);
-    params.Add("E_esc", E_esc);
+    params.Add("delep_Enu", E_nu);
     params.Add("delep_method", delep_method);
     params.Add("do_lightbulb", do_lightbulb);
     params.Add("lum", lum);

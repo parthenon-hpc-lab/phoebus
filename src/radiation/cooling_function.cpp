@@ -220,8 +220,10 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
           Real J;
           const Real lRho = std::log10(rho);
           constexpr Real rnorm = LightBulb::HeatAndCool::RNORM;
-          constexpr Real MeVToCGS = 1.16040892301e10;
-          constexpr Real Tnorm = 2.0 * MeVToCGS;
+          constexpr Real MeVToK = 1.16040892301e10;
+          constexpr Real Tnorm = 2.0 * MeVToK;
+
+          constexpr Real MeVToErg = 1.60217663399e-6;
 
           Real Ye = v(b, p::ye(), k, j, i);
           Real lambda[2];
@@ -295,42 +297,55 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
             }
 
             // now we add the entropy update (eq. 5, liebendorfer 2005)
-            if (do_delep_entropy) {
+            if (do_delep_entropy && dYe != 0.0) {
 
-              Real dS, S0;           // entropies
-              Real dT;               // temperature to update
-              Real mu_e, mu_p, mu_n; // chemical potentials, we'll get from singularity
+              Real dS, S0; // entropies
+              Real dT;     // temperature to update
+              Real mu_e, mu_p, mu_n,
+                  mu_nu; // chemical potentials, we'll get from singularity
               Real garbage;
 
               // all our const values
-              const Real E_esc =
-                  rad->Param<Real>("E_esc"); // escape energy param., in MeV
+              const Real E_nu = rad->Param<Real>("delep_Enu") *
+                                MeVToErg; // escape energy param., in MeV
               const Real T0 =
                   v(b, p::temperature(), k, j, i) * temperature_conversion_factor;
               const Real rho0 = rho;
               const Real epsilon = std::numeric_limits<Real>::epsilon();
 
               eos_sc.ChemicalPotentialsFromDensityTemperature(rho, T0, mu_e, mu_n, mu_p,
-                                                              garbage, garbage, lambda);
+                                                              garbage, mu_nu, lambda);
 
-              S0 = eos_sc.EntropyFromDensityTemperature(rho, T0, lambda);
-              // TODO: check the units on below...
-              dS = robust::ratio(-dYe * (mu_e - mu_n + mu_p - E_esc), T0);
+              // we need to convert all of our potentials, Enu (MeV -> erg)
+              // assuming entropy has units of erg/g/K
+              mu_e *= MeVToErg;
+              mu_p *= MeVToErg;
+              mu_n *= MeVToErg;
+              mu_nu *= MeVToErg;
 
-              // now we find the change in temperature and update, since we don't actually
-              // track entropy we'll use a root find method similar to that in
-              // adiabats.hpp:ComputeAdiabats
-              auto target = [&](const Real T) {
-                return eos_sc.EntropyFromDensityTemperature(rho0, T, lambda) - (S0 + dS);
-              };
+              // regime criterion: if neutrino potential less than escape energy or
+              // density too high, we don't change entropy.
+              if (mu_nu < E_nu || rho0 >= 2.0e12) {
 
-              root_find::RootFind root_find;
-              dT = root_find.regula_falsi(target, eos_sc.TMin(), eos_sc.TMax(),
-                                          epsilon * T0, T0);
+                S0 = eos_sc.EntropyFromDensityTemperature(rho, T0, lambda);
+                dS = robust::ratio(-dYe * (mu_e - mu_n + mu_p - E_nu), T0);
 
-              // final temperature update - should this be done after lightbulb?
-              v(b, p::temperature(), k, j, i) = dT / temperature_conversion_factor;
-              printf("S + dS:\t%5.8e\t\tdT:\t%5.8e\n", S0 + dS, dT);
+                // now we find the change in temperature and update, since we don't
+                // actually track entropy we'll use a root find method similar to that in
+                // adiabats.hpp:ComputeAdiabats
+                auto target = [&](const Real T) {
+                  return eos_sc.EntropyFromDensityTemperature(rho0, T, lambda) -
+                         (S0 + dS);
+                };
+
+                root_find::RootFind root_find;
+                dT = root_find.regula_falsi(target, eos_sc.TMin(), eos_sc.TMax(),
+                                            epsilon * T0, T0);
+
+                // final temperature update - should this be done after lightbulb?
+                v(b, p::temperature(), k, j, i) = dT / temperature_conversion_factor;
+                printf("dS:\t%5.8e\t\tdT:\t%5.8e\n", dS, dT - T0);
+              }
             }
           }
 
