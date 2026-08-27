@@ -14,8 +14,8 @@
 #include "geometry/geometry.hpp"
 #include "geometry/geometry_utils.hpp"
 #include "light_bulb_constants.hpp"
+#include "phoebus_utils/root_find.hpp"
 #include "phoebus_utils/variables.hpp"
-#include "phoebus_utils/adiabats.hpp"
 #include "radiation.hpp"
 #include <algorithm>
 #include <interface/sparse_pack.hpp>
@@ -179,7 +179,7 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
 
   // Light Bulb with Liebendorfer model
   const bool do_delep = rad->Param<bool>("do_delep");
-  const bool do_delep = rad->Param<bool>("do_delep_entropy");
+  const bool do_delep_entropy = rad->Param<bool>("do_delep_entropy");
   const std::string delep_method = rad->Param<std::string>("delep_method");
   const bool do_lightbulb = rad->Param<bool>("do_lightbulb");
   const bool do_gain_calc = rad->Param<bool>("do_gain_calc");
@@ -229,6 +229,8 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
 
           if (do_delep) {
 
+            Real dYe;
+
             if (delep_method == "rho_fit") {
 
               const Real lRho2 = lRho * lRho;
@@ -254,7 +256,7 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
               if (do_densityregion) {
                 const Real Ye_fit = (a0 + a1 * lRho + a2 * lRho2 + a3 * lRho3 +
                                      a4 * lRho4 + a5 * lRho5 + a6 * lRho6);
-                Real dYe = std::max(-0.05 * Ye, std::min(0.0, Ye_fit - Ye));
+                dYe = std::max(-0.05 * Ye, std::min(0.0, Ye_fit - Ye));
                 if (rho < 3.e8) { // impose plateau Ye for low densities
                   dYe = dYe * (rho - 1.e8) / 2.e8;
                 }
@@ -288,27 +290,47 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
               const Real Ye_fit = (0.5 * (y2 + y1)) + ((0.5 * x) * (y2 - y1)) +
                                   (yc * (1 - xa + (4 * xa) * (xa - 0.5) * (xa - 1)));
 
-              Real dYe = std::min(0.0, Ye_fit - Ye);
+              dYe = std::min(0.0, Ye_fit - Ye);
               Jye = dYe / dt * cdensity;
             }
 
             // now we add the entropy update (eq. 5, liebendorfer 2005)
-            if ( do_delep_entropy ) {
+            if (do_delep_entropy) {
 
-              Real dS, S0;
-              Real drho, dT;
+              Real dS, S0;           // entropies
+              Real dT;               // temperature to update
               Real mu_e, mu_p, mu_n; // chemical potentials, we'll get from singularity
               Real garbage;
-              const Real E_esc = rad->Param<Real>("E_esc"); // escape energy param., in MeV
 
-              eos_sc.ChemicalPotentialsFromDensityTemperature(rho, v(b, p::temperature(), k, j, i) * temperature_conversion_factor, mu_e, mu_n, mu_p, garbage, garbage, lambda );
+              // all our const values
+              const Real E_esc =
+                  rad->Param<Real>("E_esc"); // escape energy param., in MeV
+              const Real T0 =
+                  v(b, p::temperature(), k, j, i) * temperature_conversion_factor;
+              const Real rho0 = rho;
+              const Real epsilon = std::numeric_limits<Real>::epsilon();
 
-              S0 = eos_sc.EntropyFromDensityTemperature(rho, v(b, p::temperature(), k, j, i) * temperature_conversion_factor, lambda);
+              eos_sc.ChemicalPotentialsFromDensityTemperature(rho, T0, mu_e, mu_n, mu_p,
+                                                              garbage, garbage, lambda);
+
+              S0 = eos_sc.EntropyFromDensityTemperature(rho, T0, lambda);
               // TODO: check the units on below...
-              dS = robust::ratio(-dYe * (mu_e - mu_n + mu_p - E_esc), v(b, p::temperature(), k, j, i) * temperature_conversion_factor );
-              
-              // TODO: add implementation of ~ComputeAdiabats here, need to adjust in phoebus_utils/adiabats.hpp...
-              // update density, temperature primitives (?)
+              dS = robust::ratio(-dYe * (mu_e - mu_n + mu_p - E_esc), T0);
+
+              // now we find the change in temperature and update, since we don't actually
+              // track entropy we'll use a root find method similar to that in
+              // adiabats.hpp:ComputeAdiabats
+              auto target = [&](const Real T) {
+                return eos_sc.EntropyFromDensityTemperature(rho0, T, lambda) - (S0 + dS);
+              };
+
+              root_find::RootFind root_find;
+              dT = root_find.regula_falsi(target, eos_sc.TMin(), eos_sc.TMax(),
+                                          epsilon * T0, T0);
+
+              // final temperature update - should this be done after lightbulb?
+              v(b, p::temperature(), k, j, i) = dT / temperature_conversion_factor;
+              printf("S + dS:\t%5.8e\t\tdT:\t%5.8e\n", S0 + dS, dT);
             }
           }
 
