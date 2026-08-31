@@ -1,0 +1,131 @@
+# © 2021. Triad National Security, LLC. All rights reserved.  This
+# program was produced under U.S. Government contract 89233218CNA000001
+# for Los Alamos National Laboratory (LANL), which is operated by Triad
+# National Security, LLC for the U.S.  Department of Energy/National
+# Nuclear Security Administration. All rights in the program are
+# reserved by Triad National Security, LLC, and the U.S. Department of
+# Energy/National Nuclear Security Administration. The Government is
+# granted for itself and others acting on its behalf a nonexclusive,
+# paid-up, irrevocable worldwide license in this material to reproduce,
+# prepare derivative works, distribute copies to the public, perform
+# publicly and display publicly, and to permit others to do so.
+
+# Non-relativistic Sedov blast wave
+# As descriged in in the Castro test suite
+# https://amrex-astro.github.io/Castro/docs/Verification.html
+# To do a non-relativistic blast, set rescale = small number
+# To do a relativistic one, set rescale = 1
+
+<phoebus>
+problem = star_shredder
+
+<parthenon/job>
+problem_id  = star_shredder       # problem ID: basename of output filenames
+
+<parthenon/output1>
+variables = p.density,  &
+      	    c.density,  &
+            p.velocity, &
+            c.momentum, &
+            p.energy,   &
+            c.energy,   &
+	          pressure,	&
+      	    cs, &
+      	    p.ye, &
+      	    g.c.coord, &
+      	    g.n.coord
+
+file_type   = hdf5      # Tabular data dump
+#dn = 100
+dt          = 0.1        # time increment between outputs
+
+<parthenon/time>
+nlim        = -1        # cycle limit
+tlim        = 50        # time limit
+integrator  = rk2       # time integration algorithm
+ncycle_out  = 1         # interval for stdout summary info
+dt_init_fact = 1.e-6
+
+<parthenon/mesh>
+nghost = 4
+refinement = adaptive
+numlevel = 3
+
+nx1         = 64            # Number of zones in X1-direction
+x1min       = 0             # minimum value of X1
+x1max       = 2.5           # maximum value of X1
+ix1_bc      = gr_outflow    # Inner-X1 boundary condition flag
+ox1_bc      = gr_outflow    # Outer-X1 boundary condition flag
+
+nx2         = 32            # Number of zones in X2-direction
+x2min       = 0             # minimum value of X2
+x2max       = 1             # maximum value of X2. 
+ix2_bc      = reflect       # Inner-X2 boundary condition flag
+ox2_bc      = reflect       # Outer-X2 boundary condition flag
+
+nx3         = 1             # Number of zones in X3-direction
+x3min       = 0             # minimum value of X3
+x3max       = 6.283         # maximum value of X3. 2*pi
+ix3_bc      = periodic      # Inner-X3 boundary condition flag
+ox3_bc      = periodic      # Outer-X3 boundary condition flfgag
+
+num_threads = 1         # maximum number of OMP threads
+
+<phoebus/mesh>
+bc_vars = conserved
+
+<parthenon/meshblock>
+nx1 = 32
+nx2 = 32
+nx3 = 1
+
+<parthenon/refinement0>
+field = c.energy
+method = derivative_order_1
+max_level = 6
+
+<eos>
+type = IdealGas
+Gamma = 1.6666666666666666667
+Cv = 1.0
+
+<physics>
+hydro = true
+he = false
+3t = false
+rad = false
+tracers = false
+
+<fluid>
+xorder = 2
+cfl = 1e-2
+riemann = llf
+recon = linear
+c2p_tol = 1.e-8
+c2p_method = robust
+c2p_max_iter = 100
+Ye = false
+
+<fixup>
+enable_floors = true
+enable_ceilings = true
+enable_flux_fixup = false
+enable_c2p_fixup = false
+floor_type = ConstantRhoSie
+rho0_floor = 1.0e-12
+sie0_floor = 1.0e-12
+ceiling_type = ConstantGamSie
+sie0_ceiling = 10.0
+gam0_ceiling = 10.0
+
+<geometry>
+a = 0.9375
+axisymmetric = true
+
+<star_shredder>
+rho_star = 1.;
+ringwidth = 1.5;
+frac_kep = 1.1;
+ringtheta = 0.79;
+ringphi = 3.14;
+sep = 5.;
