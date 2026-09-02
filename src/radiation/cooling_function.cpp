@@ -306,8 +306,10 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
               Real garbage;
 
               // all our const values
-              const Real E_nu = rad->Param<Real>("delep_Enu") *
+              const Real E_nu = rad->Param<Real>("delep_entropy_Enu") *
                                 MeVToErg; // escape energy param., in MeV
+              const Real rho_trap =
+                  rad->Param<Real>("delep_entropy_rho"); // trapping density, g/cm^3
               const Real T0 =
                   v(b, p::temperature(), k, j, i) * temperature_conversion_factor;
               const Real rho0 = rho;
@@ -325,7 +327,7 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
 
               // regime criterion: if neutrino potential less than escape energy or
               // density too high, we don't change entropy.
-              if (mu_nu < E_nu || rho0 >= 2.0e12) {
+              if (mu_nu < E_nu || rho0 >= rho_trap) {
 
                 S0 = eos_sc.EntropyFromDensityTemperature(rho, T0, lambda);
                 dS = robust::ratio(-dYe * (mu_e - mu_n + mu_p - E_nu), T0);

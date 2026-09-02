@@ -145,7 +145,8 @@ do_delep		= true
 delep_method 	= liebendorfer_g15 # options are rho_fit, liebendorfer_g15 (default), and liebendorfer_n13
 
 do_delep_entropy = true # defaults to false if not set
-delep_Enu      	= 10.0 # default value from liebendorfer, in MeV
+delep_entropy_Enu = 10.0 # default value from liebendorfer, in MeV
+delep_entropy_rho = 2.0e12 # default value from liebendorfer, in g/cm^3
 
 do_gain_calc 	= false # defaults to false if not set
 
