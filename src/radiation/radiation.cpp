@@ -130,6 +130,12 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   bool do_lightbulb = false;
   if (method == "cooling_function") {
     const bool do_delep = pin->GetOrAddBoolean("radiation", "do_delep", true);
+    // enables liebendorfer entropy evolution (through drho, dT)
+    const bool do_delep_entropy =
+        pin->GetOrAddBoolean("radiation", "do_delep_entropy", false);
+    const Real E_nu = pin->GetOrAddReal("radiation", "delep_entropy_Enu", 10.0); // MeV
+    const Real rho_trap =
+        pin->GetOrAddReal("radiation", "delep_entropy_rho", 2.0e12); // g/cm^3
 
     // adding an option to switch between deleptonization prescriptions
     // e.g. 6th order density fit, liebendorfer (g15 or n13)
@@ -149,6 +155,9 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
     const Real lum = pin->GetOrAddReal("radiation", "lum", 4.0);
 
     params.Add("do_delep", do_delep);
+    params.Add("do_delep_entropy", do_delep_entropy);
+    params.Add("delep_entropy_Enu", E_nu);
+    params.Add("delep_entropy_rho", rho_trap);
     params.Add("delep_method", delep_method);
     params.Add("do_lightbulb", do_lightbulb);
     params.Add("lum", lum);
