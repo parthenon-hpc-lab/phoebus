@@ -22,17 +22,22 @@
 #include <utils/error_checking.hpp>
 #include <vector>
 
+// do we need this??
+#include <kokkos_abstraction.hpp>
 using namespace parthenon::package::prelude;
 
 namespace Progenitor {
 
 std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin);
 
+// todo: check everything here.... modeled after monopole_gr solvers used in driver
+TaskStatus GetProgenitorState(MeshData<Real> *md, Real simtime);
+
 namespace Constants {
 
 const Real BOUNCE_DENS = 2.0e14; // g/cm^3
-const Real BOUNCE_ENTR = 3.0; // kB per baryon; not sure on conversion...
-}
+const Real BOUNCE_ENTR = 3.0;    // kB per baryon; not sure on conversion...
+} // namespace Constants
 
 } // namespace Progenitor
 #endif

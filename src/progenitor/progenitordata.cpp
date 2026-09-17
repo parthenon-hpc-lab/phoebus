@@ -1,5 +1,6 @@
 #include <memory>
 #include <vector>
+#include <cstdio>
 
 #include "analysis/analysis.hpp"
 #include "analysis/history.hpp"
@@ -92,10 +93,17 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
                                                 0.008); // corresponds to r < 80 km
   Real net_heat_threshold = pin->GetOrAddReal("progenitor", "net_heat_threshold",
                                               1e-8); // corresponds to r < 80 km
-  UnitConversions units(pin);
-  Real LengthCGSToCode = units.GetLengthCGSToCode();
   auto mdot_radii = pin->GetOrAddVector("progenitor", "mdot_radii",
                                         std::vector<Real>{400}); // default 400km
+
+  // unit conversions
+  UnitConversions units(pin);
+  CodeConstants consts(units);
+  Real LengthCGSToCode = units.GetLengthCGSToCode();
+  Real DensityCGSToCode = units.GetMassDensityCGSToCode();
+  Real EntropyCGSToCode = units.GetEntropyCGSToCode();
+  // assume kb/baryon ~ kb/proton mass --> erg/g/K (specific entropy)
+  Real EntropykBToCGS = consts.kb / consts.mp; 
 
   // Add Params
   params.Add("mass_density", mass_density);
@@ -123,11 +131,11 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   params.Add("Srr_adm_dev", Srr_adm_dev);
 
   // criterion for bounce in ccsne (O'Connor & Ott 2010)
-  params.Add("bounce_density", Constants::BOUNCE_DENS);
-  params.Add("bounce_entropy", Constants::BOUNCE_ENTR);
+  params.Add("bounce_density", Constants::BOUNCE_DENS * DensityCGSToCode);
+  params.Add("bounce_entropy", Constants::BOUNCE_ENTR * EntropykBToCGS * EntropyCGSToCode);
   // set these if bounce occurs
-  params.Add("bounce_density_actual"; -1.0); 
-  params.Add("bounce_entropy_actual"; -1.0); 
+  params.Add("bounce_density_actual"; -1.0);
+  params.Add("bounce_entropy_actual"; -1.0);
   params.Add("bounce_time"; -1.0);
   params.Add("post_bounce", False);
 
@@ -177,5 +185,78 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
 
   return progenitor_pkg;
 } // Initialize
+
+TaskStatus GetProgenitorState(MeshData<Real> *md, Real simtime) {
+
+	// bounds
+	const auto ib = md->GetBoundsI(IndexDomain::interior);
+  const auto jb = md->GetBoundsJ(IndexDomain::interior);
+  const auto kb = md->GetBoundsK(IndexDomain::interior);
+
+	// namespaces, etc.
+	using parthenon::MakePackDescriptor;
+	namespace p = fluid_prim;
+	auto *pmb = md->GetParentPointer();
+  Mesh *pmesh = md->GetMeshPointer();
+	
+	// could re-calc entropy if needed, but requires an extra eos retrieval + call
+	auto &resolved_pkgs = pmesh->resolved_packages;
+	static auto desc = MakePackDescriptor<p::density, p::entropy>(resolved_pkgs.get());
+  
+  auto v = desc.GetPack(md);
+  const int nblocks = v.GetNBlocks();
+
+	// reading in parameters/conditions from package
+	auto progen = pmb->packages.Get("progenitor").get(); // actual progenitor package
+  // todo: add conversions to code units here or above at param init.
+	const Real bounce_density_crit = progen->Param<Real>("bounce_density");
+	const Real bounce_entropy_crit = progen->Param<Real>("bounce_entropy");
+
+	Real max_density, min_entropy;
+	bool post_bounce = progen->Param<bool>("post_bounce");
+  typename Kokkos::MinMax<Real>::value_type minmax; // is this right?
+
+  parthenon::par_reduce( 
+    parthenon::LoopPatternMDRange(), "Calculates max density and min entropy (pre-bounce) in SNe.",
+    DevExecSpace(), 0, nblocks - 1, kb.s, kb.e, jb.s, jb.e, ib.s, ib.e, 
+		KOKKOS_LAMBDA(const int b, const int k, const int j, const int i, typename Kokkos::MinMAx<Real>::value_type &lminmax) {
+			// checking for maximum density and minimum entropy
+      lminmax.min_val = ( v(b, p::entropy(), k, j, i) < lminmax.min_val ? v(b, p::entropy(), k, j, i) : lminmax.min_val );
+      lminmax.max_val = ( v(b, p::density(), k, j, i) > lminmax.max_val ? v(b, p::density(), k, j, i) : lminmax.max_val );
+		},
+		Kokkos::MinMax<Real>(minmax)
+  );
+
+  max_density = minmax.max_val;
+  min_entropy = minmax.min_val;
+
+	if ( max_density >= bounce_density_crit || min_entropy <= bounce_entropy_crit) {
+		
+    post_bounce = true; // bounce reached!
+		bounce_time = simtime; // capture bounce time
+
+    // update in params for continuity (also in case of restart?)
+    progen->Param<bool>("post_bounce") = post_bounce;
+    progen->Param<Real>("bounce_time") = bounce_time;
+		// set bounce params for density, entropy
+    progen->Param<Real>("bounce_density_actual") = max_density;
+    progen->Param<Real>("bounce_entropy_actual") = min_entropy;
+
+ 		// output data file, in code units
+    FILE *fout;
+    fout = fopen("bounce.dat", "w"); // questionable naming...
+    fprintf("%30s\n", ">> bounce reached!");
+    fprintf("%30s  %.14e\n", "bounce time", bounce_time);
+    fprintf("%30s  %.14e\n", "bounce density", max_density);
+    fprintf("%30s  %.14e\n", "bounce entropy", min_entropy);
+    fclose(fout);
+
+  }
+
+  // todo: do we want a bounce.dat file even if bounce isn't reached? just for progen stats?
+  
+  return TaskStatus::complete; // can this return void?? does status matter in this case
+
+} // GetProgenitorState
 
 } // namespace Progenitor
