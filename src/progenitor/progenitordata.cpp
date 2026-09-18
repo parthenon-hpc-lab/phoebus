@@ -143,6 +143,10 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   params.Add("net_heat_threshold", net_heat_threshold);
   params.Add("mdot_radii", mdot_radii);
 
+  // now that this is within the progenitor package, do we need to check progenitor
+  // enabled? e.g. w/i GetProgenitorState
+  progenitor_pkg->PostStepDiagnosticsMesh = PostStepDiagnostics;
+
   // Reductions
   auto HstSum = parthenon::UserHistoryOperation::sum;
   auto HstMax = parthenon::UserHistoryOperation::max;
@@ -185,7 +189,7 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   return progenitor_pkg;
 } // Initialize
 
-void GetProgenitorState(MeshData<Real> *md, Real simtime) {
+TaskStatus GetProgenitorState(MeshData<Real> *md, Real simtime) {
 
   // bounds
   const auto ib = md->GetBoundsI(IndexDomain::interior);
@@ -237,7 +241,10 @@ void GetProgenitorState(MeshData<Real> *md, Real simtime) {
     max_density = minmax.max_val;
     min_entropy = minmax.min_val;
 
-    if (max_density >= bounce_density_crit || min_entropy <= bounce_entropy_crit) {
+    printf("%5.8e\t%5.8e\t%5.8e\t%5.8e\t", max_density, bounce_density_crit, min_entropy,
+           bounce_entropy_crit);
+
+    if ((max_density >= bounce_density_crit) || (min_entropy <= bounce_entropy_crit)) {
 
       post_bounce = true;    // bounce reached!
       bounce_time = simtime; // capture bounce time
@@ -259,6 +266,18 @@ void GetProgenitorState(MeshData<Real> *md, Real simtime) {
     // stats?
   }
 
+  return TaskStatus::complete;
+
 } // GetProgenitorState
+
+TaskStatus PostStepDiagnostics(const parthenon::SimTime &time, MeshData<Real> *md) {
+
+  // we'll call our progenitor diagnostics in here...
+  // hopefully this is the right portion of the driver overall.
+
+  // progenitor active check occurs in here, one less package call.
+  return GetProgenitorState(md, time.time);
+
+} // PostStepDiagnostics
 
 } // namespace Progenitor

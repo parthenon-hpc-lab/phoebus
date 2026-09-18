@@ -31,7 +31,8 @@ namespace Progenitor {
 std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin);
 
 // todo: check everything here.... modeled after monopole_gr solvers used in driver
-void GetProgenitorState(MeshData<Real> *md, Real simtime);
+TaskStatus GetProgenitorState(MeshData<Real> *md, Real simtime);
+TaskStatus PostStepDiagnostics(const parthenon::SimTime &time, MeshData<Real> *md);
 
 namespace Constants {
 
