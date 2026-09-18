@@ -1186,4 +1186,15 @@ void UserWorkBeforeOutput(MeshBlock *pmb, ParameterInput *pin,
   }
 }
 
+void PostStepDiagnostics(const parthenon::SimTime &time, MeshData<Real> *md) {
+
+  // we'll call our progenitor diagnostics in here...
+  // hopefully this is the right portion of the driver overall.
+
+  // progenitor active check occurs in here, one less package call.
+  Progenitor::GetProgenitorState(md, time.time);
+}
+
+}
+
 } // namespace phoebus
