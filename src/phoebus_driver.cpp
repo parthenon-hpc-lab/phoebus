@@ -1195,6 +1195,4 @@ void PostStepDiagnostics(const parthenon::SimTime &time, MeshData<Real> *md) {
   Progenitor::GetProgenitorState(md, time.time);
 }
 
-}
-
 } // namespace phoebus

@@ -16,6 +16,7 @@ namespace Progenitor {
 std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   auto progenitor_pkg = std::make_shared<StateDescriptor>("progenitor");
   Params &params = progenitor_pkg->AllParams();
+  auto mutable_param = parthenon::Params::Mutability::Mutable;
 
   bool enabled = pin->GetOrAddBoolean("progenitor", "enabled", false);
   params.Add("enabled", enabled);
@@ -135,10 +136,7 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   params.Add("bounce_entropy",
              Constants::BOUNCE_ENTR * EntropykBToCGS * EntropyCGSToCode);
   // set these if bounce occurs
-  params.Add("bounce_density_actual"; -1.0);
-  params.Add("bounce_entropy_actual"; -1.0);
-  params.Add("bounce_time"; -1.0);
-  params.Add("post_bounce", False);
+  params.Add("post_bounce", false, mutable_param);
 
   params.Add("outside_pns_threshold", outside_pns_threshold);
   params.Add("inside_pns_threshold", inside_pns_threshold);
@@ -216,8 +214,8 @@ void GetProgenitorState(MeshData<Real> *md, Real simtime) {
     const Real bounce_density_crit = progen->Param<Real>("bounce_density");
     const Real bounce_entropy_crit = progen->Param<Real>("bounce_entropy");
 
-    Real max_density, min_entropy;
-    bool post_bounce = progen->Param<bool>("post_bounce");
+    Real max_density, min_entropy, bounce_time;
+    bool post_bounce = progen->MutableParam<bool>("post_bounce");
     typename Kokkos::MinMax<Real>::value_type minmax; // is this right?
 
     parthenon::par_reduce(
@@ -225,7 +223,7 @@ void GetProgenitorState(MeshData<Real> *md, Real simtime) {
         "Calculates max density and min entropy (pre-bounce) in SNe.", DevExecSpace(), 0,
         nblocks - 1, kb.s, kb.e, jb.s, jb.e, ib.s, ib.e,
         KOKKOS_LAMBDA(const int b, const int k, const int j, const int i,
-                      typename Kokkos::MinMAx<Real>::value_type &lminmax) {
+                      typename Kokkos::MinMax<Real>::value_type &lminmax) {
           // checking for maximum density and minimum entropy
           lminmax.min_val =
               (v(b, p::entropy(), k, j, i) < lminmax.min_val ? v(b, p::entropy(), k, j, i)
@@ -245,19 +243,15 @@ void GetProgenitorState(MeshData<Real> *md, Real simtime) {
       bounce_time = simtime; // capture bounce time
 
       // update in params for continuity (also in case of restart?)
-      progen->Param<bool>("post_bounce") = post_bounce;
-      progen->Param<Real>("bounce_time") = bounce_time;
-      // set bounce params for density, entropy
-      progen->Param<Real>("bounce_density_actual") = max_density;
-      progen->Param<Real>("bounce_entropy_actual") = min_entropy;
+      progen->UpdateParam<bool>("post_bounce", post_bounce);
 
       // output data file, in code units
       FILE *fout;
       fout = fopen("bounce.dat", "w"); // questionable naming...
-      fprintf("%30s\n", ">> bounce reached!");
-      fprintf("%30s  %.14e\n", "bounce time", bounce_time);
-      fprintf("%30s  %.14e\n", "bounce density", max_density);
-      fprintf("%30s  %.14e\n", "bounce entropy", min_entropy);
+      fprintf(fout, "%30s\n", ">> bounce reached!");
+      fprintf(fout, "%30s  %.14e\n", "bounce time", bounce_time);
+      fprintf(fout, "%30s  %.14e\n", "bounce density", max_density);
+      fprintf(fout, "%30s  %.14e\n", "bounce entropy", min_entropy);
       fclose(fout);
     }
 
