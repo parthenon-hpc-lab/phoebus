@@ -117,7 +117,9 @@ struct RootFind {
         PARTHENON_FAIL("Aborting with unbracketed root.");
       } else {
         *status = RootFindStatus::failure;
-        return guess;
+        Real yguess = std::abs(func(guess));
+        return ((yguess < std::abs(ya)) && (yguess < std::abs(yb))) ? guess
+          : (std::abs(ya) < std::abs(yb)) ? a : b;
       }
     }
     Real sign = (ya < 0 ? 1.0 : -1.0);
