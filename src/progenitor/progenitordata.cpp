@@ -96,15 +96,14 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
                                               1e-8); // corresponds to r < 80 km
   auto mdot_radii = pin->GetOrAddVector("progenitor", "mdot_radii",
                                         std::vector<Real>{400}); // default 400km
+  // progenitor status params
+  bool post_bounce_model = pin->GetOrAddBoolean("progenitor", "post_bounce_model", false);
 
   // unit conversions
   UnitConversions units(pin);
   CodeConstants consts(units);
   Real LengthCGSToCode = units.GetLengthCGSToCode();
   Real DensityCGSToCode = units.GetMassDensityCGSToCode();
-  Real EntropyCGSToCode = units.GetEntropyCGSToCode();
-  // assume kb/baryon ~ kb/proton mass --> erg/g/K (specific entropy)
-  Real EntropykBToCGS = consts.kb / consts.mp;
 
   // Add Params
   params.Add("mass_density", mass_density);
@@ -133,19 +132,19 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
 
   // criterion for bounce in ccsne (O'Connor & Ott 2010)
   params.Add("bounce_density", Constants::BOUNCE_DENS * DensityCGSToCode);
-  params.Add("bounce_entropy",
-             Constants::BOUNCE_ENTR * EntropykBToCGS * EntropyCGSToCode);
-  // set these if bounce occurs
+  // set if bounce occurs
   params.Add("post_bounce", false, mutable_param);
+  // initial model state
+  params.Add("post_bounce_model", post_bounce_model);
 
   params.Add("outside_pns_threshold", outside_pns_threshold);
   params.Add("inside_pns_threshold", inside_pns_threshold);
   params.Add("net_heat_threshold", net_heat_threshold);
   params.Add("mdot_radii", mdot_radii);
 
-  // now that this is within the progenitor package, do we need to check progenitor
-  // enabled? e.g. w/i GetProgenitorState
-  progenitor_pkg->PostStepDiagnosticsMesh = PostStepDiagnostics;
+  if (!post_bounce_model) {
+    progenitor_pkg->PostStepDiagnosticsMesh = PostStepDiagnostics;
+  }
 
   // Reductions
   auto HstSum = parthenon::UserHistoryOperation::sum;
@@ -212,14 +211,13 @@ TaskStatus GetProgenitorState(MeshData<Real> *md, Real simtime) {
   // reading in parameters/conditions from package
   auto progen = pmb->packages.Get("progenitor").get(); // actual progenitor package
   const auto progenitor_enabled = progen->Param<bool>("enabled");
+  auto post_bounce = progen->MutableParam<bool>("post_bounce");
 
-  if (progenitor_enabled) {
-    // todo: add conversions to code units here or above at param init.
+  // we only want to write this file once at bounce!
+  if (progenitor_enabled && !(*post_bounce)) {
     const Real bounce_density_crit = progen->Param<Real>("bounce_density");
-    const Real bounce_entropy_crit = progen->Param<Real>("bounce_entropy");
 
     Real max_density, min_entropy, bounce_time;
-    bool post_bounce = progen->MutableParam<bool>("post_bounce");
     typename Kokkos::MinMax<Real>::value_type minmax; // is this right?
 
     parthenon::par_reduce(
@@ -241,29 +239,24 @@ TaskStatus GetProgenitorState(MeshData<Real> *md, Real simtime) {
     max_density = minmax.max_val;
     min_entropy = minmax.min_val;
 
-    printf("%5.8e\t%5.8e\t%5.8e\t%5.8e\t", max_density, bounce_density_crit, min_entropy,
-           bounce_entropy_crit);
+    // this could be updated with entropy criteria later (not necessarily needed)
+    if (max_density >= bounce_density_crit) {
 
-    if ((max_density >= bounce_density_crit) || (min_entropy <= bounce_entropy_crit)) {
-
-      post_bounce = true;    // bounce reached!
       bounce_time = simtime; // capture bounce time
-
       // update in params for continuity (also in case of restart?)
-      progen->UpdateParam<bool>("post_bounce", post_bounce);
+      progen->UpdateParam<bool>("post_bounce", true);
 
-      // output data file, in code units
+      // output data file, in code units and cgs units
       FILE *fout;
       fout = fopen("bounce.dat", "w"); // questionable naming...
-      fprintf(fout, "%30s\n", ">> bounce reached!");
-      fprintf(fout, "%30s  %.14e\n", "bounce time", bounce_time);
-      fprintf(fout, "%30s  %.14e\n", "bounce density", max_density);
-      fprintf(fout, "%30s  %.14e\n", "bounce entropy", min_entropy);
+      fprintf(fout, "%-20s\n", ">> bounce reached!");
+      fprintf(fout, "%-16s  %.14e\n", "time", bounce_time);
+      fprintf(fout, "%-16s  %.14e\n", "central density", max_density);
+      fprintf(fout, "%-16s  %.14e\n", "central entropy", min_entropy);
       fclose(fout);
     }
 
-    // todo: do we want a bounce.dat file even if bounce isn't reached? just for progen
-    // stats?
+    // todo: do we want a file even if bounce isn't reached? just for progen stats?
   }
 
   return TaskStatus::complete;
@@ -272,10 +265,7 @@ TaskStatus GetProgenitorState(MeshData<Real> *md, Real simtime) {
 
 TaskStatus PostStepDiagnostics(const parthenon::SimTime &time, MeshData<Real> *md) {
 
-  // we'll call our progenitor diagnostics in here...
-  // hopefully this is the right portion of the driver overall.
-
-  // progenitor active check occurs in here, one less package call.
+  // we'll call our progenitor diagnostics in here for each cycle
   return GetProgenitorState(md, time.time);
 
 } // PostStepDiagnostics
