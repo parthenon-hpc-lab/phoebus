@@ -11,6 +11,9 @@
 // distribute copies to the public, perform publicly and display
 // publicly, and to permit others to do so.
 
+// Much of this is taken near-directly from KHARMA
+// https://github.com/parthenon-hpc-lab/kharma/
+
 // Device-callable CT helpers.
 
 #ifndef FLUID_B_CT_FUNCTIONS_HPP_
