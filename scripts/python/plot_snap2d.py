@@ -74,10 +74,10 @@ def plot_dump(
     y = coord[:, 2, :, nG - 1 : -1 - nG, nG - 1 : -1 - nG]
     x = coord[:, 1, :, nG - 1 : -1 - nG, nG - 1 : -1 - nG]
 
-#    if plane == "xz":
-#        rho = np.sqrt(x ** 2 + y ** 2)
-#        x = rho
-#        y = z
+    if plane == "xz":
+        rho = np.sqrt(x ** 2 + y ** 2)
+        x = rho
+        y = z
 
     if cbarbounds is not None:
         qmin, qmax = cbarbounds
