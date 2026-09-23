@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# © 2021. Triad National Security, LLC. All rights reserved.  This
+# © 2026. Triad National Security, LLC. All rights reserved.  This
 # program was produced under U.S. Government contract
 # 89233218CNA000001 for Los Alamos National Laboratory (LANL), which
 # is operated by Triad National Security, LLC for the U.S.  Department
@@ -18,7 +18,7 @@ import os
 import sys
 import regression_test as rt
 
-parser = argparse.ArgumentParser(description="Run a linear mode as a test")
+parser = argparse.ArgumentParser(description="Run MHD field loop advection as a test")
 parser.add_argument("--upgold", dest="upgold", action="store_true")
 parser.add_argument("--use_gpu", dest="use_gpu", action="store_true")
 parser.add_argument("--use_mpiexec", dest="use_mpiexec", action="store_true")
@@ -26,7 +26,7 @@ parser.add_argument(
     "--input",
     type=str,
     default=os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "../../inputs/linear_modes.pin"
+        os.path.dirname(os.path.abspath(__file__)), "../../inputs/field_loop.pin"
     ),
 )
 parser.add_argument("--executable", type=str, default=None)
@@ -36,28 +36,25 @@ parser.add_argument(
 args = parser.parse_args()
 
 modified_inputs = {}
-modified_inputs["parthenon/mesh/nx1"] = 64
-modified_inputs["parthenon/mesh/nx2"] = 64
-modified_inputs["parthenon/meshblock/nx1"] = 64
-modified_inputs["parthenon/meshblock/nx2"] = 64
-modified_inputs["fluid/mhd"] = "true"
-
-
-cmake_extra_args = ["-DPHOEBUS_DO_NU_ELECTRON_ANTI=Off", "-DPHOEBUS_DO_NU_HEAVY=Off", "-DCMAKE_CXX_RELEASE_FLAGS='-O1'"]
+modified_inputs["parthenon/time/tlim"] = 1.0
+modified_inputs["parthenon/output1/dt"] = 0.5
+modified_inputs["parthenon/mesh/nx1"] = 32
+modified_inputs["parthenon/mesh/nx2"] = 32
+modified_inputs["parthenon/meshblock/nx1"] = 16
+modified_inputs["parthenon/meshblock/nx2"] = 16
 
 code = rt.gold_comparison(
-        variables=["p.density", "p.velocity"],
+    variables=["p.density", "p.bfield", "divb"],
     input_file=args.input,
     modified_inputs=modified_inputs,
     executable=args.executable,
-    cmake_extra_args=cmake_extra_args,
     geometry="Minkowski",
     use_gpu=args.use_gpu,
     use_mpiexec=args.use_mpiexec,
     build_type=args.build_type,
     upgold=args.upgold,
-    compression_factor=10,
-    tolerance=1.0e-5
+    compression_factor=20,
+    tolerance=1.0e-5,
 )
 
 sys.exit(code)
