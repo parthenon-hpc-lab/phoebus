@@ -28,6 +28,7 @@
 #include "analysis/analysis.hpp"
 #include "compile_constants.hpp"
 #include "fixup/fixup.hpp"
+#include "fluid/b_ct.hpp"
 #include "fluid/fluid.hpp"
 #include "geometry/geometry.hpp"
 #include "microphysics/eos_phoebus/eos_phoebus.hpp"
@@ -201,6 +202,23 @@ void PhoebusDriver::PostInitializationCommunication() {
   tc.Execute();
 }
 
+// Refresh CT's derived cell field after remeshing.
+void PreStepUserWorkInLoop(Mesh *pmesh, ParameterInput *pin, parthenon::SimTime &tm) {
+  if (!pmesh->modified) return;
+
+  const bool mhd = pmesh->packages.Get("fluid")->Param<bool>("mhd");
+  if (!mhd) {
+    return;
+  }
+
+  const int num_partitions = pmesh->DefaultNumPartitions();
+  for (int ib = 0; ib < num_partitions; ib++) {
+    auto &md = pmesh->mesh_data.GetOrAdd("base", ib);
+    b_ct::MeshFaceToCell(md.get(), IndexDomain::entire);
+    parthenon::Update::FillDerived<MeshData<Real>>(md.get());
+  }
+}
+
 TaskCollection PhoebusDriver::RungeKuttaStage(const int stage) {
   using namespace ::parthenon::Update;
   TaskCollection tc;
@@ -220,6 +238,7 @@ TaskCollection PhoebusDriver::RungeKuttaStage(const int stage) {
   const auto rad_active = rad->Param<bool>("active");
   const auto rad_moments_active = rad->Param<bool>("moments_active");
   const auto fluid_active = fluid->Param<bool>("active");
+  const auto mhd = fluid->Param<bool>("mhd");
   const auto tracers_active = tracers->Param<bool>("active");
   bool rad_mocmc_active = false;
   if (rad_active) {
@@ -342,8 +361,7 @@ TaskCollection PhoebusDriver::RungeKuttaStage(const int stage) {
 
     if (fluid_active) {
       auto hydro_flux = tl.AddTask(none, fluid::CalculateFluxes, sc0.get());
-      auto hydro_flux_ct = tl.AddTask(hydro_flux, fluid::FluxCT, sc0.get());
-      sndrcv_flux_depend = sndrcv_flux_depend | hydro_flux_ct;
+      sndrcv_flux_depend = sndrcv_flux_depend | hydro_flux;
     }
 
     if (rad_moments_active) {
@@ -542,8 +560,9 @@ TaskCollection PhoebusDriver::RungeKuttaStage(const int stage) {
     }
   }
 
-  // Communicate flux corrections and update independent data with fluxes and geometric
-  // sources
+  // Update cell-centered independent fields; CT updates face fields separately.
+  const std::vector<parthenon::MetadataFlag> independent_cell_flags = {
+      parthenon::Metadata::Independent, parthenon::Metadata::Cell};
   TaskRegion &sync_region_3 = tc.AddRegion(num_partitions);
   for (int i = 0; i < num_partitions; i++) {
     auto &tl = sync_region_3[i];
@@ -557,6 +576,25 @@ TaskCollection PhoebusDriver::RungeKuttaStage(const int stage) {
     auto recv_flux = tl.AddTask(none, parthenon::ReceiveFluxCorrections, mc0);
     auto set_flux = tl.AddTask(recv_flux, parthenon::SetFluxCorrections, mc0);
 
+    // CT evolves the face field from edge EMFs.
+    TaskID ct_source = none;
+    if (mhd) {
+      auto calc_emf = tl.AddTask(set_flux, b_ct::CalculateEMF, mc0.get());
+      auto emf_bc = tl.AddTask(calc_emf, b_ct::BoundaryEMF, mc0.get());
+      // Synchronize edge EMFs before taking their curl.
+      auto &meemf = pmesh->mesh_data.AddShallow(
+          "eemf_exchange", mc0,
+          std::vector<std::string>{internal_variables::eemf::name()});
+      auto eemf_exchange =
+          parthenon::AddBoundaryExchangeTasks(emf_bc, tl, meemf, pmesh->multilevel);
+      auto add_src = tl.AddTask(eemf_exchange, b_ct::AddSource, mc0.get(), mdudt.get(),
+                                IndexDomain::interior);
+      auto avg_face =
+          tl.AddTask(none, b_ct::AverageFaceField, mc0.get(), mbase.get(), beta);
+      ct_source = tl.AddTask(add_src | avg_face, b_ct::UpdateFaceField, mc0.get(),
+                             mdudt.get(), beta * dt, mc1.get());
+    }
+
     auto flux_div =
         tl.AddTask(set_flux, parthenon::Update::FluxDivergence<MeshData<Real>>, mc0.get(),
                    mdudt.get());
@@ -569,11 +607,17 @@ TaskCollection PhoebusDriver::RungeKuttaStage(const int stage) {
     auto add_rhs = tl.AddTask(flux_div, SumData<std::vector<std::string>, MeshData<Real>>,
                               src_names, mdudt.get(), mgsrc.get(), mdudt.get());
 
-    auto avg_data = tl.AddTask(flux_div, AverageIndependentData<MeshData<Real>>,
-                               mc0.get(), mbase.get(), beta);
+    auto avg_data = tl.AddTask(
+        flux_div,
+        parthenon::Update::WeightedSumData<std::vector<parthenon::MetadataFlag>,
+                                           MeshData<Real>>,
+        independent_cell_flags, mc0.get(), mbase.get(), beta, 1.0 - beta, mc0.get());
 
-    auto update = tl.AddTask(avg_data, UpdateIndependentData<MeshData<Real>>, mc0.get(),
-                             mdudt.get(), beta * dt, mc1.get());
+    auto update = tl.AddTask(
+        avg_data | ct_source,
+        parthenon::Update::WeightedSumData<std::vector<parthenon::MetadataFlag>,
+                                           MeshData<Real>>,
+        independent_cell_flags, mc0.get(), mdudt.get(), 1.0, beta * dt, mc1.get());
   }
 
   // Fix up flux failures
@@ -584,9 +628,15 @@ TaskCollection PhoebusDriver::RungeKuttaStage(const int stage) {
     // pull out the container we'll use to get fluxes and/or compute RHSs
     auto &sc1 = pmesh->mesh_data.GetOrAdd(stage_name[stage], ib);
 
+    TaskID face_to_cell = none;
+    if (mhd) {
+      face_to_cell =
+          tl.AddTask(none, b_ct::MeshFaceToCell, sc1.get(), IndexDomain::interior);
+    }
+
     // fill in derived fields
-    auto fill_derived =
-        tl.AddTask(none, parthenon::Update::FillDerived<MeshData<Real>>, sc1.get());
+    auto fill_derived = tl.AddTask(
+        face_to_cell, parthenon::Update::FillDerived<MeshData<Real>>, sc1.get());
 
     auto fixup = tl.AddTask(fill_derived,
                             fixup::ConservedToPrimitiveFixup<MeshData<Real>>, sc1.get());
@@ -662,7 +712,13 @@ TaskCollection PhoebusDriver::RungeKuttaStage(const int stage) {
 
     auto set_bc = tl.AddTask(none, parthenon::ApplyBoundaryConditions, sc);
 
-    auto convert_bc = tl.AddTask(set_bc, Boundaries::ConvertBoundaryConditions, sc);
+    TaskID face_to_cell = set_bc;
+    if (mhd) {
+      face_to_cell =
+          tl.AddTask(set_bc, b_ct::BlockFaceToCell, sc.get(), IndexDomain::entire);
+    }
+
+    auto convert_bc = tl.AddTask(face_to_cell, Boundaries::ConvertBoundaryConditions, sc);
 
     auto fill_derived = tl.AddTask(
         convert_bc, parthenon::Update::FillDerived<MeshBlockData<Real>>, sc.get());
@@ -722,7 +778,7 @@ TaskCollection PhoebusDriver::RungeKuttaStage(const int stage) {
           floors, parthenon::Update::EstimateTimestep<MeshBlockData<Real>>, sc.get());
 
       if (fluid_active) {
-        auto divb = tl.AddTask(floors, fluid::CalculateDivB, sc.get());
+        auto divb_ct = tl.AddTask(floors, b_ct::CalcDivB, sc.get());
       }
 
       // Update refinement

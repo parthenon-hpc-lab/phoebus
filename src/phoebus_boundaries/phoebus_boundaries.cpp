@@ -23,6 +23,7 @@
 #include <utils/error_checking.hpp>
 using namespace parthenon::package::prelude;
 
+#include "fluid/b_ct.hpp"
 #include "fluid/fluid.hpp"
 #include "geometry/geometry.hpp"
 #include "geometry/geometry_utils.hpp"
@@ -60,8 +61,8 @@ void GenericBC(std::shared_ptr<MeshBlockData<Real>> &rc, bool coarse) {
   const int ref = INNER ? range.s : range.e;
 
   // Variable pack
-  auto q = rc->PackVariables(std::vector<parthenon::MetadataFlag>{Metadata::FillGhost},
-                             coarse);
+  auto q = rc->PackVariables(
+      std::vector<parthenon::MetadataFlag>{Metadata::FillGhost, Metadata::Cell}, coarse);
   auto nb = IndexRange{0, q.GetDim(4) - 1};
 
   // Loop label
@@ -113,6 +114,12 @@ void GenericBC(std::shared_ptr<MeshBlockData<Real>> &rc, bool coarse) {
           q(l, k, j, i) = sgn * q(l, kref, jref, iref);
         }
       });
+
+  if (TYPE == BCType::Reflect) {
+    b_ct::ReflectFaceB(rc.get(), domain, coarse);
+  } else {
+    b_ct::OutflowFaceB(rc.get(), domain, coarse);
+  }
 }
 
 void OutflowInnerX1(std::shared_ptr<MeshBlockData<Real>> &rc, bool coarse) {
@@ -122,8 +129,9 @@ void OutflowInnerX1(std::shared_ptr<MeshBlockData<Real>> &rc, bool coarse) {
   auto bounds = coarse ? pmb->c_cellbounds : pmb->cellbounds;
   int ref = bounds.GetBoundsI(IndexDomain::interior).s;
   PackIndexMap imap;
-  auto q = rc->PackVariables(std::vector<parthenon::MetadataFlag>{Metadata::FillGhost},
-                             imap, coarse);
+  auto q = rc->PackVariables(
+      std::vector<parthenon::MetadataFlag>{Metadata::FillGhost, Metadata::Cell}, imap,
+      coarse);
   auto nb = IndexRange{0, q.GetDim(4) - 1};
   // auto nb1 = IndexRange{0, 0};
   auto domain = IndexDomain::inner_x1;
@@ -148,6 +156,7 @@ void OutflowInnerX1(std::shared_ptr<MeshBlockData<Real>> &rc, bool coarse) {
           q(l, k, j, i) = q(l, k, j, ref);
         });
   }
+  b_ct::OutflowFaceB(rc.get(), domain, coarse);
 }
 
 void PolarInnerX2(std::shared_ptr<MeshBlockData<Real>> &rc, bool coarse) {
@@ -156,8 +165,9 @@ void PolarInnerX2(std::shared_ptr<MeshBlockData<Real>> &rc, bool coarse) {
 
   auto bounds = coarse ? pmb->c_cellbounds : pmb->cellbounds;
   PackIndexMap imap;
-  auto q = rc->PackVariables(std::vector<parthenon::MetadataFlag>{Metadata::FillGhost},
-                             imap, coarse);
+  auto q = rc->PackVariables(
+      std::vector<parthenon::MetadataFlag>{Metadata::FillGhost, Metadata::Cell}, imap,
+      coarse);
   auto nb = IndexRange{0, q.GetDim(4) - 1};
   auto domain = IndexDomain::inner_x2;
   const int j0 = bounds.GetBoundsJ(IndexDomain::interior).s;
@@ -167,7 +177,6 @@ void PolarInnerX2(std::shared_ptr<MeshBlockData<Real>> &rc, bool coarse) {
   PARTHENON_REQUIRE(bc_vars == "primitive", "Polar X2 reflecting BCs not supported");
 
   const auto idx_pvel = imap.GetFlatIdx(fluid_prim::velocity::name(), false);
-  const auto idx_pb = imap.GetFlatIdx(fluid_prim::bfield::name(), false);
 
   const bool fine = false;
   pmb->par_for_bndry(
@@ -176,12 +185,11 @@ void PolarInnerX2(std::shared_ptr<MeshBlockData<Real>> &rc, bool coarse) {
         const int jref = -j + 2 * j0 - 1;
         if (l == idx_pvel(1)) {
           q(l, k, j, i) = -q(l, k, jref, i);
-        } else if (l == idx_pb(1)) {
-          q(l, k, j, i) = -q(l, k, jref, i);
         } else {
           q(l, k, j, i) = q(l, k, jref, i);
         }
       });
+  b_ct::ReflectFaceB(rc.get(), domain, coarse);
 }
 
 void PolarOuterX2(std::shared_ptr<MeshBlockData<Real>> &rc, bool coarse) {
@@ -190,8 +198,9 @@ void PolarOuterX2(std::shared_ptr<MeshBlockData<Real>> &rc, bool coarse) {
 
   auto bounds = coarse ? pmb->c_cellbounds : pmb->cellbounds;
   PackIndexMap imap;
-  auto q = rc->PackVariables(std::vector<parthenon::MetadataFlag>{Metadata::FillGhost},
-                             imap, coarse);
+  auto q = rc->PackVariables(
+      std::vector<parthenon::MetadataFlag>{Metadata::FillGhost, Metadata::Cell}, imap,
+      coarse);
   auto nb = IndexRange{0, q.GetDim(4) - 1};
   auto domain = IndexDomain::outer_x2;
   const int j0 = bounds.GetBoundsJ(IndexDomain::interior).e;
@@ -201,7 +210,6 @@ void PolarOuterX2(std::shared_ptr<MeshBlockData<Real>> &rc, bool coarse) {
   PARTHENON_REQUIRE(bc_vars == "primitive", "Polar X2 reflecting BCs not supported");
 
   const auto idx_pvel = imap.GetFlatIdx(fluid_prim::velocity::name(), false);
-  const auto idx_pb = imap.GetFlatIdx(fluid_prim::bfield::name(), false);
 
   const std::string label = "PolarOuterX2Prim";
   const bool fine = false;
@@ -211,12 +219,11 @@ void PolarOuterX2(std::shared_ptr<MeshBlockData<Real>> &rc, bool coarse) {
         const int jref = -j + 2 * (j0 + 1) - 1;
         if (l == idx_pvel(1)) {
           q(l, k, j, i) = -q(l, k, jref, i);
-        } else if (l == idx_pb(1)) {
-          q(l, k, j, i) = -q(l, k, jref, i);
         } else {
           q(l, k, j, i) = q(l, k, jref, i);
         }
       });
+  b_ct::ReflectFaceB(rc.get(), domain, coarse);
 }
 
 void OutflowOuterX1(std::shared_ptr<MeshBlockData<Real>> &rc, bool coarse) {
@@ -226,8 +233,9 @@ void OutflowOuterX1(std::shared_ptr<MeshBlockData<Real>> &rc, bool coarse) {
   auto bounds = coarse ? pmb->c_cellbounds : pmb->cellbounds;
   int ref = bounds.GetBoundsI(IndexDomain::interior).e;
   PackIndexMap imap;
-  auto q = rc->PackVariables(std::vector<parthenon::MetadataFlag>{Metadata::FillGhost},
-                             imap, coarse);
+  auto q = rc->PackVariables(
+      std::vector<parthenon::MetadataFlag>{Metadata::FillGhost, Metadata::Cell}, imap,
+      coarse);
   auto nb = IndexRange{0, q.GetDim(4) - 1};
   // auto nb1 = IndexRange{0, 0};
 
@@ -258,6 +266,7 @@ void OutflowOuterX1(std::shared_ptr<MeshBlockData<Real>> &rc, bool coarse) {
           q(l, k, j, i) = q(l, k, j, ref);
         });
   }
+  b_ct::OutflowFaceB(rc.get(), domain, coarse);
 }
 
 void ReflectInnerX1(std::shared_ptr<MeshBlockData<Real>> &rc, bool coarse) {
