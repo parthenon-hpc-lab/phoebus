@@ -11,6 +11,8 @@
 # distribute copies to the public, perform publicly and display
 # publicly, and to permit others to do so.
 
+from __future__ import annotations
+
 import os
 import sys
 import numpy as np
@@ -366,6 +368,9 @@ def gold_comparison(
                 variable = swarm.Get(svar)
                 variable, temp = dual_sort(variable, swarm_id)
                 variables_data = np.concatenate((variables_data, variable))
+
+    # Release the HDF5 handle so cleanup can remove RUN_DIR (fails on GPFS otherwise)
+    dump.fid.close()
 
     # Compress results, if desired
     compression_factor = int(compression_factor)

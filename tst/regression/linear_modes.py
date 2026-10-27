@@ -31,7 +31,7 @@ parser.add_argument(
 )
 parser.add_argument("--executable", type=str, default=None)
 parser.add_argument(
-    "--build_type", type=str, default="Release", choices=["Debug, Release"]
+    "--build_type", type=str, default="Release", choices=["Debug", "Release"]
 )
 args = parser.parse_args()
 
@@ -41,9 +41,12 @@ modified_inputs["parthenon/mesh/nx2"] = 64
 modified_inputs["parthenon/meshblock/nx1"] = 64
 modified_inputs["parthenon/meshblock/nx2"] = 64
 modified_inputs["fluid/mhd"] = "true"
+# The pgen forces tlim to one wave period. Stop early: limiter branch flips amplify
+# roundoff differences between builds exponentially (~0.3% of the mode by one period).
+modified_inputs["parthenon/time/nlim"] = 100
 
 
-cmake_extra_args = ["-DPHOEBUS_DO_NU_ELECTRON_ANTI=Off", "-DPHOEBUS_DO_NU_HEAVY=Off", "-DCMAKE_CXX_RELEASE_FLAGS='-O1'"]
+cmake_extra_args = ["-DPHOEBUS_DO_NU_ELECTRON_ANTI=Off", "-DPHOEBUS_DO_NU_HEAVY=Off"]
 
 code = rt.gold_comparison(
         variables=["p.density", "p.velocity"],
@@ -57,7 +60,7 @@ code = rt.gold_comparison(
     build_type=args.build_type,
     upgold=args.upgold,
     compression_factor=10,
-    tolerance=1.0e-3
+    tolerance=1.0e-5
 )
 
 sys.exit(code)

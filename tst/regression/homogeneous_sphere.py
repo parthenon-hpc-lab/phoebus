@@ -32,7 +32,7 @@ parser.add_argument(
 )
 parser.add_argument("--executable", type=str, default=None)
 parser.add_argument(
-    "--build_type", type=str, default="Release", choices=["Debug, Release"]
+    "--build_type", type=str, default="Release", choices=["Debug", "Release"]
 )
 args = parser.parse_args()
 
