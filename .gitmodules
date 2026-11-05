@@ -13,4 +13,7 @@
 [submodule "external/nulib"]
 	path = external/nulib
 	url = https://github.com/Yurlungur/NuLib.git
-	branch = jmm/nubhlight-config
+	# branch = jmm/nubhlight-configs
+[submodule "external/NuLib"]
+	path = external/NuLib
+	url = https://github.com/Yurlungur/NuLib.git
