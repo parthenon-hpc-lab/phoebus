@@ -18,7 +18,7 @@ namespace Progenitor {
 std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   auto progenitor_pkg = std::make_shared<StateDescriptor>("progenitor");
   Params &params = progenitor_pkg->AllParams();
-  auto mutable_param = parthenon::Params::Mutability::Mutable;
+  auto restart = parthenon::Params::Mutability::Restart;
 
   bool enabled = pin->GetOrAddBoolean("progenitor", "enabled", false);
   params.Add("enabled", enabled);
@@ -135,7 +135,7 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   // criterion for bounce in ccsne (O'Connor & Ott 2010)
   params.Add("bounce_density", Constants::BOUNCE_DENS * DensityCGSToCode);
   // set if bounce occurs
-  params.Add("post_bounce", false, mutable_param);
+  params.Add("post_bounce", false, restart);
   // initial model state
   params.Add("post_bounce_model", post_bounce_model);
 
@@ -205,7 +205,8 @@ TaskStatus GetProgenitorState(MeshData<Real> *md, Real simtime) {
 
   // could re-calc entropy if needed, but requires an extra eos retrieval + call
   auto &resolved_pkgs = pmesh->resolved_packages;
-  static auto desc = MakePackDescriptor<p::density, p::entropy>(resolved_pkgs.get());
+  static auto desc =
+      MakePackDescriptor<p::density, p::ye, p::temperature>(resolved_pkgs.get());
 
   auto v = desc.GetPack(md);
   const int nblocks = v.GetNBlocks();
@@ -215,12 +216,15 @@ TaskStatus GetProgenitorState(MeshData<Real> *md, Real simtime) {
   const auto progenitor_enabled = progen->Param<bool>("enabled");
   auto post_bounce = progen->MutableParam<bool>("post_bounce");
 
+  // also getting the eos package (on device) for entropy calc
+  auto eos = pmb->packages.Get("eos")->Param<Microphysics::EOS::EOS>("d.EOS");
+
   // we only want to write this file once at bounce!
   if (progenitor_enabled && !(*post_bounce)) {
     const Real bounce_density_crit = progen->Param<Real>("bounce_density");
 
     Real max_density, min_entropy, bounce_time;
-    typename Kokkos::MinMax<Real>::value_type minmax; // is this right?
+    typename Kokkos::MinMax<Real>::value_type minmax;
 
     parthenon::par_reduce(
         parthenon::LoopPatternMDRange(),
@@ -228,10 +232,14 @@ TaskStatus GetProgenitorState(MeshData<Real> *md, Real simtime) {
         nblocks - 1, kb.s, kb.e, jb.s, jb.e, ib.s, ib.e,
         KOKKOS_LAMBDA(const int b, const int k, const int j, const int i,
                       typename Kokkos::MinMax<Real>::value_type &lminmax) {
+          Real lambda[2];
+          lambda[0] = v(0, p::ye(), k, j, i);
+          // we'll do entropy calculation on the fly in the loop
+          const Real entropy = eos.EntropyFromDensityTemperature(
+              v(0, p::density(), k, j, i), v(0, p::temperature(), k, j, i), lambda);
+
           // checking for maximum density and minimum entropy
-          lminmax.min_val =
-              (v(b, p::entropy(), k, j, i) < lminmax.min_val ? v(b, p::entropy(), k, j, i)
-                                                             : lminmax.min_val);
+          lminmax.min_val = (entropy < lminmax.min_val ? entropy : lminmax.min_val);
           lminmax.max_val =
               (v(b, p::density(), k, j, i) > lminmax.max_val ? v(b, p::density(), k, j, i)
                                                              : lminmax.max_val);
@@ -259,18 +267,21 @@ TaskStatus GetProgenitorState(MeshData<Real> *md, Real simtime) {
       auto uc = pm->packages.Get("phoebus")->Param<UnitConversions>("unit_conv");
 
       // output data file, in code units and cgs units
-      FILE *fout;
-      fout = fopen("bounce.dat", "w"); // questionable naming...
-      fprintf(fout, "%-26s  %.14e  %.14e\n", "time [s]", bounce_time,
-              uc.GetTimeCodeToCGS() * bounce_time);
-      fprintf(fout, "%-26s  %.14e  %.14e\n", "central density [g/cc]", max_density,
-              uc.GetMassDensityCodeToCGS() * max_density);
-      fprintf(fout, "%-26s  %.14e  %.14e\n", "central entropy [erg/K/g]", min_entropy,
-              uc.GetEntropyCodeToCGS() * min_entropy);
-      fclose(fout);
+      // todo (law): remove this once we resolve profile/restart output at bounce
+      if (parthenon::Globals::my_rank == 0) { // ensures only one write
+        FILE *fout;
+        fout = fopen("bounce.dat", "w"); // questionable naming...
+        fprintf(fout, "%-26s  %.14e  %.14e\n", "time [s]", bounce_time,
+                uc.GetTimeCodeToCGS() * bounce_time);
+        fprintf(fout, "%-26s  %.14e  %.14e\n", "central density [g/cc]", max_density,
+                uc.GetMassDensityCodeToCGS() * max_density);
+        fprintf(fout, "%-26s  %.14e  %.14e\n", "central entropy [erg/K/g]", min_entropy,
+                uc.GetEntropyCodeToCGS() * min_entropy);
+        fclose(fout);
+      }
     }
 
-    // todo: do we want a file even if bounce isn't reached? just for progen stats?
+    // todo (law): do we want a file even if bounce isn't reached? just for progen stats?
   }
 
   return TaskStatus::complete;
