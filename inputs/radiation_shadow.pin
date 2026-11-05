@@ -1,0 +1,107 @@
+# © 2021. Triad National Security, LLC. All rights reserved.  This
+# program was produced under U.S. Government contract 89233218CNA000001
+# for Los Alamos National Laboratory (LANL), which is operated by Triad
+# National Security, LLC for the U.S.  Department of Energy/National
+# Nuclear Security Administration. All rights in the program are
+# reserved by Triad National Security, LLC, and the U.S. Department of
+# Energy/National Nuclear Security Administration. The Government is
+# granted for itself and others acting on its behalf a nonexclusive,
+# paid-up, irrevocable worldwide license in this material to reproduce,
+# prepare derivative works, distribute copies to the public, perform
+# publicly and display publicly, and to permit others to do so.
+
+<phoebus>
+problem = radiation_shadow
+<parthenon/job>
+problem_id  = rad_shadow   # problem ID: basename of output filenames
+
+<parthenon/output1>
+variables = r.c.E, &
+            r.c.F, &
+            r.p.J, &
+            r.p.H, &
+            r.i.kappaH, &
+            r.i.kappaJ
+
+file_type   = hdf5      # Tabular data dump
+dt          = 1e-9    # time increment between outputs
+
+<parthenon/time>
+nlim        = -1      # cycle limit
+tlim        = 10.e0    # time limit
+integrator  = rk2     # time integration algorithm
+ncycle_out  = 1       # interval for stdout summary info
+dt_init_fact = 1.e-6
+dt_force = 8e-3
+
+<parthenon/mesh>
+nghost = 4
+refinement = none
+
+nx1    = 220
+x1min  = -2
+x1max  = 3
+# boundaries
+ix1_bc = gr_outflow
+ox1_bc = gr_outflow
+
+nx2    = 220
+x2min  = -4
+x2max  = 4
+ix2_bc = gr_outflow  # Inner-X2 boundary condition flag
+ox2_bc = gr_outflow  # Outer-X2 boundary condition flag
+
+nx3    = 4
+x3min  = -1
+x3max  = 1
+ix3_bc = gr_outflow  # Inner-X3 boundary condition flag
+ox3_bc = gr_outflow # Outer-X3 boundary condition flfgag
+
+num_threads = 12         # maximum number of OMP threads
+
+bc_vars = primitive
+
+<parthenon/meshblock>
+nx1 = 20
+nx2 = 20
+nx3 = 4
+
+####<parthenon/refinement0>
+####field = c.c.bulk.rho
+####method = derivative_order_1
+####max_level = 3
+
+<eos>
+type = IdealGas
+Gamma = 1.6666666666666666667
+Cv = 1.0
+
+<physics>
+hydro = false
+he = false
+3t = false
+rad = true
+tracers = false
+
+<fluid>
+xorder = 2
+cfl = 0.1
+riemann = hll
+recon = weno5
+c2p_max_iter = 100
+Ye = true
+
+<radiation>
+cfl = 0.4
+method = moment_m1
+absorption = true
+recon = linear
+src_solver = oned
+
+<radiation_shadow>
+rho = 1.0
+kap_a = 1.0
+kap_s = 0.
+tau = 0
+R_star = 1.0
+vx = 0.0

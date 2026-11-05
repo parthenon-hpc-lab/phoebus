@@ -98,6 +98,7 @@ set (SRC_LIST
   pgen/p2c2p.cpp
   pgen/radiation_advection.cpp
   pgen/radiation_equilibration.cpp
+  pgen/radiation_shadow.cpp
   pgen/rhs_tester.cpp
   pgen/rotor.cpp
   pgen/shock_tube.cpp
