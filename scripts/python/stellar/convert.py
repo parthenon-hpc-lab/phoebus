@@ -157,7 +157,7 @@ def make_info_file( rhoc: float, M0: float, R0: float, T0: float, prof_conv: np.
             '# -----conversion factors, multiply to get back to cgs [phb -> cgs]\n'
         )
         fout.write(fmt % (R0, 'radius'))
-        fout.write(fmt % (1 / ((G / c**2.0) ** 3.0 * M0**2.0)), 'density')
+        fout.write(fmt % (1 / ((G / c**2.0) ** 3.0 * M0**2.0), 'density'))
         fout.write(fmt % (1 / kB, 'temperature'))
         fout.write(fmt % (c**2.0, 'sie'))
         fout.write(fmt % (c, 'velocity'))
