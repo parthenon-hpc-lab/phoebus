@@ -173,6 +173,7 @@ target_include_directories(phoebuslib PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/../external/singularity-eos/utils/spiner"
   "${CMAKE_CURRENT_SOURCE_DIR}/../external/singularity-eos/utils/variant/include"
   "${CMAKE_CURRENT_SOURCE_DIR}/../external/singularity-opac/utils"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../external/NuLib"
 )
 
 target_compile_features(phoebuslib PUBLIC cxx_std_17)

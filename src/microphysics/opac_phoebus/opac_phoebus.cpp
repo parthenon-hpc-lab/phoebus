@@ -129,12 +129,16 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
     const std::string filename = pin->GetString("opacity", "filename");
     params.Add("filename", filename);
 
+    const std::string table_type = pin->GetOrAddString("opacity", "table_type", "sp5");
+    const SpinerOpac::LoadSource load_from = (
+      table_type == "sp5" ? SpinerOpac::LoadSource::SP5 : SpinerOpac::LoadSource::NuLib);
+
     PARTHENON_REQUIRE(!scale_free, "Must have CGS scaling for tabular opacities!");
 
     singularity::neutrinos::Opacity opacity_host = NonCGSUnits<SpinerOpac>(
-        SpinerOpac(filename), time_unit, mass_unit, length_unit, temp_unit);
+        SpinerOpac(filename, load_from), time_unit, mass_unit, length_unit, temp_unit);
     auto opacity_device = opacity_host.GetOnDevice();
-    singularity::neutrinos::Opacity opacity_host_baseunits = SpinerOpac(filename);
+    singularity::neutrinos::Opacity opacity_host_baseunits = SpinerOpac(filename, load_from);
     params.Add("h.opacity_baseunits", opacity_host_baseunits);
     params.Add("h.opacity", opacity_host);
     params.Add("d.opacity", opacity_device);
