@@ -41,6 +41,9 @@ modified_inputs["parthenon/mesh/nx2"] = 64
 modified_inputs["parthenon/meshblock/nx1"] = 64
 modified_inputs["parthenon/meshblock/nx2"] = 64
 modified_inputs["fluid/mhd"] = "true"
+# The pgen forces tlim to one wave period. Stop early: limiter branch flips amplify
+# roundoff differences between builds exponentially (~0.3% of the mode by one period).
+modified_inputs["parthenon/time/nlim"] = 100
 
 
 cmake_extra_args = ["-DPHOEBUS_DO_NU_ELECTRON_ANTI=Off", "-DPHOEBUS_DO_NU_HEAVY=Off", "-DCMAKE_CXX_RELEASE_FLAGS='-O1'"]
