@@ -163,7 +163,7 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
   radiation::MomentPrim2Con(rc.get(), IndexDomain::interior);
 }
 
-void PreStepMeshUserWorkInLoop(Mesh *pmesh, ParameterInput *pin, SimTime &sim_time) {
+void PreSubStepModifier(Mesh *pmesh, ParameterInput *pin) {
   
   for (auto &pmb : pmesh->block_list) {
     auto &rc = pmb->meshblock_data.Get();

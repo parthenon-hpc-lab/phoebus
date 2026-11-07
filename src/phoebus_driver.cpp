@@ -33,6 +33,7 @@
 #include "microphysics/eos_phoebus/eos_phoebus.hpp"
 #include "microphysics/opac_phoebus/opac_phoebus.hpp"
 #include "monopole_gr/monopole_gr.hpp"
+#include "pgen/pgen.hpp"
 #include "phoebus_boundaries/phoebus_boundaries.hpp"
 #include "phoebus_driver.hpp"
 #include "phoebus_package.hpp"
@@ -132,6 +133,8 @@ TaskListStatus PhoebusDriver::Step() {
   integrator->dt = dt_trial;
 
   for (int stage = 1; stage <= integrator->nstages; stage++) {
+    //TPJ: Definitely a better way to do this, but just to get things working for beam tests
+    PreSubStepModifier(pmesh, pinput);
     TaskCollection tc = RungeKuttaStage(stage);
     status = tc.Execute();
     if (status != TaskListStatus::complete) break;

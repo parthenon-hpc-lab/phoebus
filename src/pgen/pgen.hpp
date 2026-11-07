@@ -44,6 +44,7 @@ using namespace parthenon::package::prelude;
   PROBLEM(bondi)                                                                         \
   PROBLEM(radiation_advection)                                                           \
   PROBLEM(radiation_equilibration)                                                       \
+  PROBLEM(radiation_shadow)                                                              \
   PROBLEM(rotor)                                                                         \
   PROBLEM(homogeneous_sphere)                                                            \
   PROBLEM(torus)                                                                         \
@@ -63,6 +64,12 @@ using namespace parthenon::package::prelude;
   POSTINIT_MODIFIER(phoebus)                                                             \
   POSTINIT_MODIFIER(advection)                                                           \
   POSTINIT_MODIFIER(torus)
+
+// if you need problem-specific pre rk-substep modifiers to during evolution, add
+// the name here
+#define FOREACH_PRESUBSTEP_MODIFIER                                                   \
+  PRESUBSTEP_MODIFIER(phoebus)                                                        \
+  PRESUBSTEP_MODIFIER(radiation_shadow)
 
 /*
 // DO NOT TOUCH THE MACROS BELOW
@@ -92,6 +99,14 @@ FOREACH_MODIFIER
 FOREACH_POSTINIT_MODIFIER
 #undef POSTINIT_MODIFIER
 
+// declare all the pre-rk-substep modifiers
+#define PRESUBSTEP_MODIFIER(name)                                                     \
+  namespace name {                                                                    \
+  void PreSubStepModifier(Mesh *pmesh, ParameterInput *pin);                          \
+  }
+FOREACH_PRESUBSTEP_MODIFIER
+#undef PRESUBSTEP_MODIFIER
+
 namespace phoebus {
 
 // make a map so we get all the function pointers available for lookup by name
@@ -112,8 +127,15 @@ static std::map<std::string, std::function<void(ParameterInput *pin, Mesh *pmesh
     pinitmod_dict({
 #define POSTINIT_MODIFIER(name) {#name, name::PostInitializationModifier},
         FOREACH_POSTINIT_MODIFIER
-#undef POSTINITMODIFIER
+#undef POSTINIT_MODIFIER
     });
+
+static std::map<std::string, std::function<void(Mesh *pmesh, ParameterInput *pin)>>
+    ppresubstepmod_dict({
+#define PRESUBSTEP_MODIFIER(name) {#name, name::PreSubStepModifier},
+        FOREACH_PRESUBSTEP_MODIFIER
+#undef PRESUBSTEP_MODIFIER
+    });  
 
 /*
 // END OF UNTOUCHABLE MACRO SECTION
