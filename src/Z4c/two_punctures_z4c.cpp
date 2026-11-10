@@ -1,0 +1,156 @@
+#include <cmath> // pow
+
+// Athena++ headers
+#include "z4c.hpp"
+#include "z4c_macro.hpp"
+
+#ifdef TWO_PUNCTURES
+
+// twopuncturesc: Stand-alone library ripped from Cactus
+#include "TwoPunctures.h"
+
+//----------------------------------------------------------------------------------------
+// \!fn void Z4c::ADMTwoPunctures(AthenaArray<Real> & u)
+// \brief Initialize ADM vars to two punctures
+
+void Z4c::ADMTwoPunctures(ParameterInput *pin, AthenaArray<Real> & u_adm, ini_data *data)
+{
+  bool verbose = pin->GetOrAddBoolean("problem", "verbose", 0);
+
+  ADM_vars adm;
+  SetADMAliases(u_adm, adm);
+
+  //MeshBlock * pmb = pmy_block;
+  //Coordinates * pco = pmb->pcoord;
+
+  // Flat spacetime
+  ADMMinkowski(u_adm);
+
+  //--
+
+  // construct initial data set
+  if(verbose)
+    std::cout << "Generating two puncture data." << std::endl;
+
+  if(verbose)
+    std::cout << "Done!" << std::endl;
+
+  // interpolate to ADM variables based on solution
+  if(verbose)
+    std::cout << "Interpolating current MeshBlock." << std::endl;
+
+  int imin[3] = {0, 0, 0};
+
+  // dimensions of block in each direction
+  //int n[3] = {(*pmb).block_size.nx1 + 2 * GSIZEI,
+  //            (*pmb).block_size.nx2 + 2 * GSIZEJ,
+  //            (*pmb).block_size.nx3 + 2 * GSIZEK};
+  int n[3] = {pmy_block->nverts1, pmy_block->nverts2, pmy_block->nverts3};
+
+  int sz = n[0] * n[1] * n[2];
+  // this could be done instead by accessing and casting the Athena vars but
+  // then it is coupled to implementation details etc.
+  Real *gxx = new Real[sz], *gyy = new Real[sz], *gzz = new Real[sz];
+  Real *gxy = new Real[sz], *gxz = new Real[sz], *gyz = new Real[sz];
+
+  Real *Kxx = new Real[sz], *Kyy = new Real[sz], *Kzz = new Real[sz];
+  Real *Kxy = new Real[sz], *Kxz = new Real[sz], *Kyz = new Real[sz];
+
+  Real *psi = new Real[sz];
+  Real *alp = new Real[sz];
+
+  Real *x = new Real[n[0]];
+  Real *y = new Real[n[1]];
+  Real *z = new Real[n[2]];
+
+  // need to populate coordinates
+  for(int ix_I = 0; ix_I < n[0]; ix_I++){
+    //x[ix_I] = pco->x1v(ix_I);
+    x[ix_I] = pmy_block->pcoord->x1f(ix_I);
+  }
+
+  for(int ix_J = 0; ix_J < n[1]; ix_J++){
+    //y[ix_J] = pco->x2v(ix_J);
+    y[ix_J] = pmy_block->pcoord->x2f(ix_J);
+  }
+
+  for(int ix_K = 0; ix_K < n[2]; ix_K++){
+    //z[ix_K] = pco->x3v(ix_K);
+    z[ix_K] = pmy_block->pcoord->x3f(ix_K);
+  }
+
+  TwoPunctures_Cartesian_interpolation
+    (data, // struct containing the previously calculated solution
+     imin, // min, max idxs of Cartesian Grid in the three directions
+     n,    // <-imax, but this collapses
+     n,    // total number of indices in each direction
+     x,    // x,         // Cartesian coordinates
+     y,    // y,
+     z,    // z,
+     alp,  // alp,       // lapse
+     psi,  // psi,       // conformal factor and derivatives
+     NULL, // psix,
+     NULL, // psiy,
+     NULL, // psiz,
+     NULL, // psixx,
+     NULL, // psixy,
+     NULL, // psixz,
+     NULL, // psiyy,
+     NULL, // psiyz,
+     NULL, // psizz,
+     gxx,  // gxx,       // metric components
+     gxy,  // gxy,
+     gxz,  // gxz,
+     gyy,  // gyy,
+     gyz,  // gyz,
+     gzz,  // gzz,
+     Kxx,  // kxx,       // extrinsic curvature components
+     Kxy,  // kxy,
+     Kxz,  // kxz,
+     Kyy,  // kyy,
+     Kyz,  // kyz,
+     Kzz   // kzz
+     );
+
+
+  int flat_ix;
+  double psi4;
+
+  GLOOP3(k,j,i){
+    flat_ix = i + n[0]*(j + n[1]*k);
+
+    psi4 = pow(psi[flat_ix], 4);
+    adm.psi4(k, j, i) = psi4;
+
+    adm.g_dd(0, 0, k, j, i) = psi4 * gxx[flat_ix];
+    adm.g_dd(1, 1, k, j, i) = psi4 * gyy[flat_ix];
+    adm.g_dd(2, 2, k, j, i) = psi4 * gzz[flat_ix];
+    adm.g_dd(0, 1, k, j, i) = psi4 * gxy[flat_ix];
+    adm.g_dd(0, 2, k, j, i) = psi4 * gxz[flat_ix];
+    adm.g_dd(1, 2, k, j, i) = psi4 * gyz[flat_ix];
+
+    adm.K_dd(0, 0, k, j, i) = Kxx[flat_ix];
+    adm.K_dd(1, 1, k, j, i) = Kyy[flat_ix];
+    adm.K_dd(2, 2, k, j, i) = Kzz[flat_ix];
+    adm.K_dd(0, 1, k, j, i) = Kxy[flat_ix];
+    adm.K_dd(0, 2, k, j, i) = Kxz[flat_ix];
+    adm.K_dd(1, 2, k, j, i) = Kyz[flat_ix];
+
+  }
+
+
+  delete[] gxx; delete[] gyy; delete[] gzz;
+  delete[] gxy; delete[] gxz; delete[] gyz;
+
+  delete[] Kxx; delete[] Kyy; delete[] Kzz;
+  delete[] Kxy; delete[] Kxz; delete[] Kyz;
+
+  delete[] psi; delete[] alp;
+
+  delete[] x; delete[] y; delete[] z;
+
+  if(verbose)
+    std::cout << "\n\n<-Z4c::ADMTwoPunctures\n\n";
+}
+
+#endif // TWO_PUNCTURES

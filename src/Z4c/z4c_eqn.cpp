@@ -45,6 +45,7 @@ constexpr size_t scratch_level = 1; // can be 0, 1, or 2. Depends on hardware. 0
 // gets allocation size for scratch memory for rank 2 tensor along pencil in i
 const auto scratch_size = parthenon::ScratchPad3D<Real>::shmem_size(NDIM, NDIM, Ni) /* + more sizes if desired */;
 
+#if 0
 // make loop...
 parthenon::par_for_outer(DEFAULT_OUTER_LOOP_PATTERN, "loop name", DevExecSpace(),
   // scratch declarations
@@ -61,9 +62,22 @@ parthenon::par_for_outer(DEFAULT_OUTER_LOOP_PATTERN, "loop name", DevExecSpace()
 
   // do stuff...
 });
+#endif
+TaskStatus ComputeConstraints(MeshData<Real> *md_state, MeshData<Real> *md_constraint) {
+   auto pm = md_state->GetParentPointer();
+   StateDescriptor *resolved_pkgs = pm->resolved_pkgs.get();
 
+   // overload has optional args for flags or string names (instead of var types) and for options, such as "include fluxes"
+   // notice static. This is done once ever per pack.
+   static auto desc = parthenon::MakePackDescriptor<constraint::H, constraint::M>(resolved_pkgs); //TODO : adding more constraints
 
-  ILOOP2(md, scratch_szie, scratch_level,b, k, j) {
+  // actually make the pack.
+  auto pack = desc.GetPack(md);
+  
+  auto state = desc.GetPack(md_state);
+  auto rhs = desc.GetPack(md_constraint);
+  
+  ILOOP2(md_state, scratch_szie, scratch_level,b, k, j) {
     // -----------------------------------------------------------------------------------
     // derivatives
     //
@@ -263,11 +277,51 @@ parthenon::par_for_outer(DEFAULT_OUTER_LOOP_PATTERN, "loop name", DevExecSpace()
     }
   }); //end of ILOOP2 //TODO: check
 }
+ return TaskStatue::complete;
+} //end of computeConstraint
 
 TaskStatus ComputeRHS(MeshData<Real> *md_state, MeshData<Real> *md_rhs) {
-  //TODO: boiler plate crap above
+  
+   //auto pm = md_state->GetParentPointer();
+   auto pm = md->GetParentPointer();
+   StateDescriptor *resolved_pkgs = pm->resolved_pkgs.get();
+
+   // overload has optional args for flags or string names (instead of var types) and for options, such as "include fluxes"
+   // notice static. This is done once ever per pack.
+   static auto desc = parthenon::MakePackDescriptor<evolution_z4c::chi,
+	                                            evolution_z4c::g,
+	                                            evolution_z4c::Khat,
+	                                            evolution_z4c::A,
+	                                            evolution_z4c::Gam,
+	                                            evolution_z4c::Theta,
+	                                            evolution_z4c::alpha,
+	                                            evolution_z4c::beta>(resolved_pkgs);
+
+  // actually make the pack.
+  auto pack = desc.GetPack(md);
+  
   auto state = desc.GetPack(md_state);
   auto rhs = desc.GetPack(md_rhs);
+
+  // Initializations for options
+  // TODO: This is ugly. Make it as parameter
+  
+  option opt;
+  opt.chi_psi_floor = -4.0;
+  opt.chi_div_floor = -1000.0;
+  opt.diss = 0.0;
+  opt.eps_floor = 1e-12;
+  opt.damp_kappa1 = 0.0;
+  opt.damp_kappa2 = 0.0;
+  opt.lapse_oplog = 1.0;
+  opt.lapse_harmonicf = 0.0;
+  opt.lapse_harmonic = 2.0;
+  opt.lapse_advect = 1.0;
+  opt.shift_Gamma = 1.0;
+  opt.shift_alpha2Gamma = 0.0;
+  opt.shift_H = 0.0;
+  opt.shift_advect = 1.0;
+  opt.shift_eta = 2.0 = 2.0;;
 
   // in loop...
   ILOOP2(md_state, scratch_size, scratch_level, b, k, j) {
@@ -664,12 +718,70 @@ TaskStatus ComputeRHS(MeshData<Real> *md_state, MeshData<Real> *md_rhs) {
       }
     }
 
+        // -----------------------------------------------------------------------------------
+    // Assemble RHS
+    //
+    // Khat, chi, and Theta
+    ILOOP1(i) {
+      Khat_rhs(k,j,i) = - Ddalpha(i) + z4c.alpha(k,j,i) * (AA(i) + (1./3.)*SQR(K(i))) +
+        LKhat(i) + opt.damp_kappa1*(1 - opt.damp_kappa2) * z4c.alpha(k,j,i) * z4c.Theta(k,j,i);
+      Khat_rhs(k,j,i) += 4*M_PI * z4c.alpha(k,j,i) * (S(i) + mat.rho(k,j,i));
+      chi_rhs(k,j,i) = Lchi(i) - (1./6.) * opt.chi_psi_power *
+        chi_guarded(i) * z4c.alpha(k,j,i) * K(i);
+      Theta_rhs(k,j,i) = LTheta(i) + z4c.alpha(k,j,i) * (
+          0.5*Ht(i) - (2. + opt.damp_kappa2) * opt.damp_kappa1 * z4c.Theta(k,j,i));
+      Theta_rhs(k,j,i) -= 8.*M_PI * z4c.alpha(k,j,i) * mat.rho(k,j,i);
+    }
+    // Gamma's
+    for(int a = 0; a < NDIM; ++a) {
+      ILOOP1(i) {
+        Gam_rhs(a,k,j,i) = 2.*z4c.alpha(k,j,i)*DA_u(a,i) + LGam_u(a,i);
+        Gam_rhs(a,k,j,i) -= 2.*z4c.alpha(k,j,i) * opt.damp_kappa1 *
+            (z4c.Gam_u(a,k,j,i) - Gamma_u(a,i));
+      }
+      for(int b = 0; b < NDIM; ++b) {
+        ILOOP1(i) {
+          Gam_rhs(a,k,j,i) -= 2. * A_uu(a,b,i) * dalpha_d(b,i);
+          Gam_rhs(a,k,j,i) -= 16.*M_PI * z4c.alpha(k,j,i) * g_uu(a,b,i) * mat.S_d(b,k,j,i);
+        }
+      }
+    }
+    // g and A
+    //LOOK
+    for(int a = 0; a < NDIM; ++a)
+    for(int b = a; b < NDIM; ++b) {
+      ILOOP1(i) {
+        g_rhs(a,b,k,j,i) = - 2. * z4c.alpha(k,j,i) * z4c.A_dd(a,b,k,j,i) + Lg_dd(a,b,i);
+        A_rhs(a,b,k,j,i) = oopsi4(i) *
+            (-Ddalpha_dd(a,b,i) + z4c.alpha(k,j,i) * (R_dd(a,b,i) + Rphi_dd(a,b,i)));
+        A_rhs(a,b,k,j,i) -= (1./3.) * z4c.g_dd(a,b,k,j,i) * (-Ddalpha(i) + z4c.alpha(k,j,i)*R(i));
+        A_rhs(a,b,k,j,i) += z4c.alpha(k,j,i) * (K(i)*z4c.A_dd(a,b,k,j,i) - 2.*AA_dd(a,b,i));
+        A_rhs(a,b,k,j,i) += LA_dd(a,b,i);
+        A_rhs(a,b,k,j,i) -= 8.*M_PI * z4c.alpha(k,j,i) *
+            (oopsi4(i)*mat.S_dd(a,b,k,j,i) - (1./3.)*S(i)*z4c.g_dd(a,b,k,j,i));
+      }
+    }
+    // lapse function
+    ILOOP1(i) {
+      Real const f = opt.lapse_oplog * opt.lapse_harmonicf + opt.lapse_harmonic * z4c.alpha(k,j,i);
+       alpha_rhs(k,j,i) = opt.lapse_advect * Lalpha(i) - f * z4c.alpha(k,j,i) * z4c.Khat(k,j,i);
+    }
+
+    // shift vector
+    for(int a = 0; a < NDIM; ++a) {
+      ILOOP1(i) {
+        beta_rhs(a,k,j,i) = opt.shift_Gamma * z4c.Gam_u(a,k,j,i) + opt.shift_advect * Lbeta_u(a,i);
+	//TODO : different gauge option for shift?
+      }
+    }
+
     // RHS asseble goes here
-    SPACETIMELOOP2(mu, nu) {
-      Real *A_rhs = &rhs(b, A(flatten(mu, nu), k, j);
+    // Rank 2
+    SPACELOOP2(mu, nu) {
+      Real *A_rhs = &rhs(b, A(flatten(mu, nu)), k, j);
          parthenon::par_for_inner(DEFAULT_INNER_LOOP_PATTERN, member, ib.s, ib.e,
          [&](const int i) {
-             A_rhs[i] = 0.;
+             A_rhs[i] = LA_dd(mu,nu,i);
 	     Khat_rhs[i]=0.;
 	     chi_rhs[i]=0.;
 	     Theta_rhs[i]=0.;
@@ -679,6 +791,23 @@ TaskStatus ComputeRHS(MeshData<Real> *md_state, MeshData<Real> *md_rhs) {
 
          });
     }
+    
+    SPACELOOP(mu){
+    }
+
+
+    // Scalar
+      Real *Khat_rhs = &rhs(b, Khat(), k, j);
+         parthenon::par_for_inner(DEFAULT_INNER_LOOP_PATTERN, member, ib.s, ib.e,
+         [&](const int i) {
+	     Khat_rhs[i]=0.;
+	     chi_rhs[i]=0.;
+	     Theta_rhs[i]=0.;
+	     Gam_rhs[i]=0.;
+	     alpha_rhs[i]=0.;
+	     beta_rhs[i]=0.;
+
+         });
   })//end of ILOOP2 //TODO: check;
 
   return TaskStatus::complete;

@@ -11,7 +11,7 @@
 # the public, perform publicly and display publicly, and to permit others to do so.
 #=========================================================================================
 
-add_executable(phoebus
+add_executable(phoebus_z4c
   main.cpp # first
 
   # alphabetical
@@ -106,6 +106,8 @@ add_executable(phoebus
   phoebus_boundaries/phoebus_boundaries.cpp
 
   phoebus_driver.cpp
+  #TODO : Eventually will remove this separate driver
+  phoebus_driver_z4c.cpp
   phoebus_driver.hpp
   phoebus_package.cpp
   phoebus_package.hpp
@@ -145,13 +147,45 @@ add_executable(phoebus
 
   tov/tov.hpp
   tov/tov.cpp
+)
 
-  # HL : Turn on this later
-  #Z4c/Z4c.hpp
-  #Z4c/Z4c.cpp
-  #Z4c/Z4c_utils.cpp
-  #Z4c/fd_compute.hpp
-  #Z4c/fd_stencil.hpp
+add_executable(phoebus_z4c2
+  main.cpp # first
+
+  # alphabetical
+  geometry/geometry_utils.hpp
+
+  phoebus_boundaries/phoebus_boundaries.hpp
+  phoebus_boundaries/phoebus_boundaries.cpp
+
+  phoebus_driver.cpp
+  #TODO : Eventually will remove this separate driver
+  phoebus_driver_z4c.cpp
+  phoebus_driver.hpp
+  phoebus_package.cpp
+  phoebus_package.hpp
+
+  phoebus_utils/cell_locations.hpp
+  phoebus_utils/phoebus_interpolation.hpp
+  phoebus_utils/preprocessor_utils.hpp
+  phoebus_utils/reduction.hpp
+  phoebus_utils/relativity_utils.hpp
+  phoebus_utils/robust.hpp
+  phoebus_utils/root_find.hpp
+  phoebus_utils/variables.hpp
+
+  analysis/history.hpp
+  analysis/history_utils.hpp
+  analysis/history.cpp
+  
+  Z4c/z4c.hpp
+  Z4c/z4c.cpp
+  Z4c/z4c_utils.cpp
+  Z4c/fd_compute.hpp
+  Z4c/fd_stencil.hpp
+  Z4c/puncture_tracker.hpp
+  Z4c/puncture_tracker.cpp
+  Z4c/two_puncture_z4c.cpp
 )
 
 set(MAX_NUMBER_CONSERVED_VARS 9 CACHE INTEGER "Maximum number of conserved variables")

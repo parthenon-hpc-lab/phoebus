@@ -119,5 +119,28 @@ inline Real Trace(Real const detginv,
 }
 
 
+// Some user settings and options
+//
+  struct {
+    Real chi_psi_power;   // chi = psi^N, N = chi_psi_power
+    Real chi_div_floor;   // puncture's floor value for chi, use max(chi, chi_div_floor) in non-differentiated chi
+    Real diss;            // amount of numerical dissipation
+    Real eps_floor;       // a small number O(10^-12)
+    // Constraint damping parameters
+    Real damp_kappa1;
+    Real damp_kappa2;
+    // Gauge conditions for the lapse
+    Real lapse_oplog;
+    Real lapse_harmonicf;
+    Real lapse_harmonic;
+    Real lapse_advect;
+    // Gauge condition for the shift
+    Real shift_Gamma;
+    Real shift_alpha2Gamma;
+    Real shift_H;
+    Real shift_advect;
+    Real shift_eta;
+  } option;
+
 
 #endif // Z4C_HPP_
