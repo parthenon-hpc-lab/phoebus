@@ -98,6 +98,7 @@ set (SRC_LIST
   pgen/p2c2p.cpp
   pgen/radiation_advection.cpp
   pgen/radiation_equilibration.cpp
+  pgen/radiation_shadow.cpp
   pgen/rhs_tester.cpp
   pgen/rotor.cpp
   pgen/shock_tube.cpp
@@ -172,6 +173,7 @@ target_include_directories(phoebuslib PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/../external/singularity-eos/utils/spiner"
   "${CMAKE_CURRENT_SOURCE_DIR}/../external/singularity-eos/utils/variant/include"
   "${CMAKE_CURRENT_SOURCE_DIR}/../external/singularity-opac/utils"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../external/NuLib"
 )
 
 target_compile_features(phoebuslib PUBLIC cxx_std_17)

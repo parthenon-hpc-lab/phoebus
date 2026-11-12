@@ -55,4 +55,14 @@ void PostInitializationModifier(ParameterInput *pin, Mesh *pmesh) {
   f(pin, pmesh);
 }
 
+void PreSubStepModifier(Mesh *pmesh, ParameterInput *pin) {
+  std::string name = pin->GetString("phoebus", "problem");
+  if (name == "phoebus" || ppresubstepmod_dict.count(name) == 0) {
+    return;
+  }
+
+  auto f = ppresubstepmod_dict[name];
+  f(pmesh, pin);
+}
+
 } // namespace phoebus

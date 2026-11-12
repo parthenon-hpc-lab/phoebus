@@ -3,9 +3,9 @@ run-name: Ubuntu-g++ mpi build
 
 on:
   push:
-    branches: [main]
+    branches: [main, shadow_test]
   pull_request:
-    branches: [main]
+    branches: [main, shadow_test]
 jobs:
   phoebus_compile_and_build:
     name: Ubuntu-g++ mpi build
