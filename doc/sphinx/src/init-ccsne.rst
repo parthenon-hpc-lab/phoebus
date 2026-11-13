@@ -44,6 +44,9 @@ Within the input file, there are a variety of flags and options that can be used
    * - ``‑‑model‑header``
      - ``-1``
      - (optional) Line number (zero-indexed) of the profile header (if < 0, goes to defaults - MESA: 4, KEPLER: 1).
+   * - ``--is-short``
+     -
+     - (bool) If using a `*.short` progenitor profile, handles input correctly
    * - ``‑‑atbounce``
      -
      - (bool) If using a GR1D model, pulls data files at bounce.

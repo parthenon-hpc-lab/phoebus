@@ -284,6 +284,7 @@ void ReduceLocalizationFunction(MeshData<Real> *md) {
 // Mdot=Int(dV*d/dx^i{detg*rho*U^i}) where detg is the determinant of four metric, U is
 // four-velocity, and dV=d^3x
 
+// TODO: check implementation of this and other ccsne diagnostics (law)
 Real CalculateMdot(MeshData<Real> *md, Real rc, bool gain) {
   const auto ib = md->GetBoundsI(IndexDomain::interior);
   const auto jb = md->GetBoundsJ(IndexDomain::interior);
@@ -318,6 +319,7 @@ Real CalculateMdot(MeshData<Real> *md, Real rc, bool gain) {
     do_gain = pdo_gain_reducer->val;
   }
   auto progenitor = pmb->packages.Get("progenitor").get();
+  // TODO: should this be defined as a radius, or calculated in-code?
   const Real inside_pns_threshold = progenitor->Param<Real>("inside_pns_threshold");
   const Real net_heat_threshold = progenitor->Param<Real>("net_heat_threshold");
 
@@ -361,5 +363,12 @@ Real CalculateMdot(MeshData<Real> *md, Real rc, bool gain) {
       Kokkos::Sum<Real>(result));
   return result;
 } // mdot
+
+// using the method of Shankar et al. 2026 + Kaustan et al. 2015 bounded criterion
+// e.g. Bernoulli and modified Bernoulli crit
+Real CalculateExplosionEnergy(MeshData<Real> *md) {
+
+  
+} // explosion energy
 
 } // namespace History

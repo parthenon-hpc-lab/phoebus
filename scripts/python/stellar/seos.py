@@ -35,6 +35,38 @@ def calculate_eos_energy_stellarcollapse(rho: np.ndarray, T: np.ndarray, ye: np.
 
     return eps, u
 
+
+def calculate_eos_pressure_stellarcollapse(rho: np.ndarray, T: np.ndarray, ye: np.ndarray, filename: str ):
+
+    '''
+    Calculates an EOS-consistent pressure for a stellar/ccsne progenitor profile using a StellarCollpase equation
+    of state and ``Singularity-EOS`` Python bindings.
+
+    Args:
+        rho (np.ndarray): Density of the profile.
+        T (np.ndarray): Temperature of the profile.
+        ye (np.ndarray): Electron fraction of the profile.
+        filename (str): Full filename and path pointing to the *.h5 tabulated equation of state.
+
+    Returns:
+        np.ndarray: Pressure of the profile.
+
+    '''
+
+    eos = StellarCollapse(filename, use_sp5=False, filter_bmod=True)
+    nlambda = eos.nlambda  # get number of elements per lambda
+    lmbda = np.zeros(nlambda, dtype=np.double)
+    pres = np.zeros(len(rho))
+
+    for i in range(len(rho)):
+        lmbda[0] = ye[i]
+        pres[i] = eos.PressureFromDensityTemperature(rho[i], T[i], lmbda)
+
+    # we'll put in an artificial atmosphere for any weird out of bounds errors.
+    pres[pres <= 1e2] = 1e2 
+
+    return pres
+
 def calculate_eos_energy_helmholtz(rho: np.ndarray, T: np.ndarray, abar: np.ndarray, zbar: np.ndarray, filename: str):
 
     '''
