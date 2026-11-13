@@ -210,7 +210,7 @@ def get_short_profile( PATH: str, verbose: bool = False ) -> np.ndarray:
 
     # loading in the profile using pandas dataframe
     try: 
-         prof = pd.read_csv(PATH, sep=r"\s+", names=['zone', 'mass', 'radius', 'temperature', 'density', 'velocity', 'ye', 'omega'])
+         prof = pd.read_csv(PATH, sep=r"\s+", names=['zone', 'mass', 'radius', 'temperature', 'density', 'velocity', 'ye', 'omega'], skiprows=1)
     except: 
          raise FileNotFoundError(f'*.short profile not found at {PATH}.')
 

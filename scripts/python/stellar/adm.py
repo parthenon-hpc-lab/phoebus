@@ -215,6 +215,7 @@ class ADMSolver:
                 if np.sum(press) == 0.0: # e.g. if we have a *.short model
                     press = calculate_eos_pressure_stellarcollapse( self.rho0, temp, ye, self.EOSPATH)
 
+                
             else:
                 raise UserWarning(f'StellarCollapse style EOS {self.eos_type} not currently supported for CCSNe initialization.')
             

@@ -62,6 +62,9 @@ def calculate_eos_pressure_stellarcollapse(rho: np.ndarray, T: np.ndarray, ye: n
         lmbda[0] = ye[i]
         pres[i] = eos.PressureFromDensityTemperature(rho[i], T[i], lmbda)
 
+    # we'll put in an artificial atmosphere for any weird out of bounds errors.
+    pres[pres <= 1e2] = 1e2 
+
     return pres
 
 def calculate_eos_energy_helmholtz(rho: np.ndarray, T: np.ndarray, abar: np.ndarray, zbar: np.ndarray, filename: str):
