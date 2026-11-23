@@ -398,11 +398,22 @@ class ConToPrim {
     if (rsq >= res.get_h0sq()) {
       mu_r = res.compute_upper_bound(); // we don't always need a second root find
     } else {
-      mu_r = 1 / sqrt(res.get_h0sq());
+      mu_r = robust::ratio(1 - rel_tolerance, sqrt(res.get_h0sq()));
     }
 
     root_find::RootFind root(max_iter);
-    const Real mu = root.regula_falsi(res, 0.0, mu_r, rel_tolerance, v(c2p_mu));
+    root_find::RootFindStatus status;
+    Real mu = root.regula_falsi(res, 0.0, mu_r, rel_tolerance, v(c2p_mu), &status);
+    if (status == root_find::RootFindStatus::failure) {
+      mu = root.secant(res, 0.0, mu_r, rel_tolerance, mu, &status);
+    }
+    if (status == root_find::RootFindStatus::failure) {
+      const Real rval = res(mu);
+      printf("Root finder at x = (%.14e %.14e %.14e) failed with residual %.14e\n",
+             x1, x2, x3, rval);
+      PARTHENON_FAIL("Root finder failure in con2prim!");
+    }
+
     v(c2p_mu) = mu;
 #if CON2PRIM_STATISTICS
     con2prim_statistics::Stats::add(root.iteration_count);

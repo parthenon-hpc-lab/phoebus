@@ -103,6 +103,7 @@ set (SRC_LIST
   pgen/shock_tube.cpp
   pgen/thin_cooling.cpp
   pgen/sedov.cpp
+  pgen/star_shredder.cpp
   pgen/torus.cpp
   pgen/tov.cpp
 
