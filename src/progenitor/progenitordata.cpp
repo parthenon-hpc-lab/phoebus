@@ -159,11 +159,11 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   parthenon::HstVar_list hst_vars = {};
 
   auto Eexpl = [](MeshData<Real> *md) {
-      return History::CalculateExplosionEnergy(md)<false>;
+      return History::CalculateExplosionEnergy(md, false);
   };
 
   auto Eexpl_mod = [](MeshData<Real> *md) {
-      return History::CalculateExplosionEnergy(md)<false>;
+      return History::CalculateExplosionEnergy(md, true);
   };
 
   hst_vars.emplace_back(HistoryOutputVar(HstSum, Eexpl, "E_expl"));

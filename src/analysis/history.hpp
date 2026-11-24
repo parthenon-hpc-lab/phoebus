@@ -45,6 +45,7 @@ Real ReduceJetMomentumFlux(MeshData<Real> *md);
 Real ReduceMagneticFluxPhi(MeshData<Real> *md);
 void ReduceLocalizationFunction(MeshData<Real> *md);
 Real CalculateMdot(MeshData<Real> *md, Real rc, bool gain);
+Real CalculateExplosionEnergy(MeshData<Real> *md, const bool modified);
 
 template <typename Reducer_t>
 Real ReduceOneVar(MeshData<Real> *md, const std::string &varname, int idx = 0) {
