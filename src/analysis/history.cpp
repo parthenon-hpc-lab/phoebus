@@ -16,7 +16,9 @@
 #include "geometry/geometry.hpp"
 #include "geometry/geometry_utils.hpp"
 #include "history_utils.hpp"
+#include "microphysics/eos_phoebus/eos_phoebus.hpp"
 #include "phoebus_utils/relativity_utils.hpp"
+#include "phoebus_utils/robust.hpp"
 #include <interface/sparse_pack.hpp>
 #include <parthenon/package.hpp>
 
@@ -284,6 +286,7 @@ void ReduceLocalizationFunction(MeshData<Real> *md) {
 // Mdot=Int(dV*d/dx^i{detg*rho*U^i}) where detg is the determinant of four metric, U is
 // four-velocity, and dV=d^3x
 
+// TODO: check implementation of this and other ccsne diagnostics (law)
 Real CalculateMdot(MeshData<Real> *md, Real rc, bool gain) {
   const auto ib = md->GetBoundsI(IndexDomain::interior);
   const auto jb = md->GetBoundsJ(IndexDomain::interior);
@@ -318,6 +321,7 @@ Real CalculateMdot(MeshData<Real> *md, Real rc, bool gain) {
     do_gain = pdo_gain_reducer->val;
   }
   auto progenitor = pmb->packages.Get("progenitor").get();
+  // TODO: should this be defined as a radius, or calculated in-code?
   const Real inside_pns_threshold = progenitor->Param<Real>("inside_pns_threshold");
   const Real net_heat_threshold = progenitor->Param<Real>("net_heat_threshold");
 
@@ -361,5 +365,87 @@ Real CalculateMdot(MeshData<Real> *md, Real rc, bool gain) {
       Kokkos::Sum<Real>(result));
   return result;
 } // mdot
+
+// using the method of Shankar et al. 2026 + Kaustan et al. 2015 bounded criterion
+Real CalculateExplosionEnergy(MeshData<Real> *md, const bool modified) {
+
+  // coords/bounds
+  const auto ib = md->GetBoundsI(IndexDomain::interior);
+  const auto jb = md->GetBoundsJ(IndexDomain::interior);
+  const auto kb = md->GetBoundsK(IndexDomain::interior);
+
+  // namespaces, etc.
+  using parthenon::MakePackDescriptor;
+  namespace p = fluid_prim;
+  namespace c = fluid_cons;
+  auto *pmb = md->GetParentPointer();
+  Mesh *pmesh = md->GetMeshPointer();
+
+  // we'll need rho (prim and cons), sie(rho, T, ye), W(rho), velocity >> can add comoving
+  // magnetic field if desired later this also lets us calculate enthalpy
+  // we also need the lapse to get the time dependent velocity
+  auto &resolved_pkgs = pmesh->resolved_packages;
+  static auto desc =
+      MakePackDescriptor<c::density, p::density, p::ye, p::temperature, p::velocity>(
+          resolved_pkgs.get());
+
+  auto v = desc.GetPack(md);
+  const int nblocks = v.GetNBlocks();
+
+  // needed because our conserved variables are densitized
+  auto geom = Geometry::GetCoordinateSystem(md);
+
+  // pull in progenitor properties, bounce criterion
+  auto progen = pmb->packages.Get("progenitor").get(); // actual progenitor package
+  const auto progenitor_enabled = progen->Param<bool>("enabled");
+  auto post_bounce = progen->MutableParam<bool>("post_bounce");
+  // also getting the eos package (on device) for sie/pressure calc
+  auto eos = pmb->packages.Get("eos")->Param<Microphysics::EOS::EOS>("d.EOS");
+
+  Real result;
+
+  parthenon::par_reduce(
+        parthenon::LoopPatternMDRange(),
+        "Calculates total explosion energy for progenitor.", DevExecSpace(), 0,
+        nblocks - 1, kb.s, kb.e, jb.s, jb.e, ib.s, ib.e,
+        KOKKOS_LAMBDA(const int b, const int k, const int j, const int i,
+                      Real &lresult) {
+          
+          // getting eos quantities
+          Real lambda[2];
+          lambda[0] = v(b, p::ye(), k, j, i);
+          const Real P = eos.PressureFromDensityTemperature(
+              v(b, p::density(), k, j, i), v(b, p::temperature(), k, j, i), lambda);
+          const Real eps = eos.InternalEnergyFromDensityTemperature(
+              v(b, p::density(), k, j, i), v(b, p::temperature(), k, j, i), lambda);
+          const Real rho = v(b, p::density(), k, j, i);
+          const Real crho = v(b, c::density(), k, j, i);
+          
+          // enthalpy and u^t(W, alpha)
+          const Real h = 1 - eps - robust::ratio(P, rho);
+          // is cell center fine here for W?
+          const Real vcon[3] = {v(b, p::velocity(0), k, j, i),
+                      v(b, p::velocity(1), k, j, i),
+                      v(b, p::velocity(2), k, j, i)};
+          const Real W = phoebus::GetLorentzFactor( vcon, geom, CellLocation::Cent, b, k, j, i);
+          const Real alpha = geom.Lapse(CellLocation::Cent, b, k, j, i); 
+          const Real ut = robust::ratio(W, alpha);
+
+          // calculated bounded criterion (bernoulli and modified bern.) over full region
+          const Real bernoulli = (-1. * h * ut) > 1.; // bernoulli: -h u^t > 1
+          const bool isbound = modified ? bernoulli + ( (alpha * P) / (rho * W)) : bernoulli; // if modified: -h u^t > 1 + (alpha P / W rho )
+
+          // sqrt of gamma
+          const Real detg = geom.DetGamma(CellLocation::Cent, b, k, j, i);
+
+          if (isbound) {
+            lresult += detg * (crho - rho); // Ekin = detg (W - 1) rho d^3x = detg (c::density - p::density)
+            lresult += detg * crho * eps;  // Eint = detg W rho eps d^3x = = detg (c::density * sie(rho, T))
+          }
+        }, result); 
+
+  return result; // make sure this is implemented in progenitor history.
+
+} // explosion energy
 
 } // namespace History

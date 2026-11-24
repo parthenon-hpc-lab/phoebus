@@ -195,6 +195,46 @@ def get_GR1D_profile( PATH: str, at_bounce: bool = True, time: float = -1.0, ver
     
     return profnp, time
 
+def get_short_profile( PATH: str, verbose: bool = False ) -> np.ndarray:
+ 
+    '''
+    Retrieves a stellar evolution profile in the *.short (e.g. GR1D input) format. Note that sie, pressure, abar, and zbar are not included in this form, we'll calculate sie and pressure using the EOS in the ADM solver.
+
+    Args:
+        PATH (str): Path to the desired profile.
+        verbose (bool, optional): Enables command line output. Defaults to False.
+
+    Returns:
+        np.ndarray: original profile values of [radius, velocity, density, pressure, ye, temperature, energy, omega, abar, zbar], from innermost radial coordinate outward.
+    '''
+
+    # loading in the profile using pandas dataframe
+    try: 
+         prof = pd.read_csv(PATH, sep=r"\s+", names=['zone', 'mass', 'radius', 'temperature', 'density', 'velocity', 'ye', 'omega'], skiprows=1)
+    except: 
+         raise FileNotFoundError(f'*.short profile not found at {PATH}.')
+
+    # setting sie, pressure, abar, zbar to zero (not included in .short data)
+    # we'll calculate pressure and sie in the ADM pipeline from the eos using rho, T
+    zeros = np.zeros( len(prof) )
+        
+    # new numpy array of needed quantities.
+    profnp = np.column_stack([
+                prof['radius'],
+                prof['velocity'],
+                prof['density'],
+                zeros,
+                prof['ye'],
+                prof['temperature'],
+                zeros,
+                prof['omega'],
+                zeros,
+                zeros
+            ])
+    
+    return profnp
+
+
 
 ### ---------------------------------------------------------------
 ### ------------ data handling utilities for going from lagrangian-style grids (most 1d codes, mass coord) to eulerian resolution for phoebus

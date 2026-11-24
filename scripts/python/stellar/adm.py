@@ -2,12 +2,10 @@
 #  A refactor of Mariam's GR_Solver class, with some of the original methods and a cleaner i/o structure.
 # 
 #     >>> outstanding tasks
-# 
-#         TODO: update class documentation
-#         TODO: update method documentation
+
 #         TODO: ask brandon + devs about TOV and homologous cases, could reproduce if needed?
 # 
-#     law. 16 jun 2026
+#     law. 13 nov 2026
 
 
 from seos import *
@@ -204,12 +202,20 @@ class ADMSolver:
             self.zones = self.r0.shape[0] 
         
         # finding energy density (consistent with eos) since we don't include that in profiles:
+        # also finding pressure if using a *.short profile (pressure == zero)
         if self.problem == "stellartable":
          
             if self.eos_type.lower() == 'helmholtz':
                 eps, u = calculate_eos_energy_helmholtz( self.rho0, temp, abar, zbar, self.EOSPATH )
+                if np.sum(press) == 0.0: # e.g. if we have a *.short model (no abar, zbar)
+                    raise UserWarning(f'Helmholtz EOS {self.eos_type} not currently supported for CCSNe initialization with *.short profile.')
+                
             elif self.eos_type.lower() == 'stellarcollapse':
                 eps, u = calculate_eos_energy_stellarcollapse( self.rho0, temp, ye, self.EOSPATH )
+                if np.sum(press) == 0.0: # e.g. if we have a *.short model
+                    press = calculate_eos_pressure_stellarcollapse( self.rho0, temp, ye, self.EOSPATH)
+
+                
             else:
                 raise UserWarning(f'StellarCollapse style EOS {self.eos_type} not currently supported for CCSNe initialization.')
             

@@ -12,7 +12,7 @@ import argparse
 import time
 
 # our custom helper classes/methods
-from progenitors import get_MESA_profile, get_KEPLER_profile, get_GR1D_profile
+from progenitors import get_MESA_profile, get_KEPLER_profile, get_GR1D_profile, get_short_profile
 from progenitors import wmavg, interp_to_eulerian, fixup_rad_vel
 from progenitors import save_raw_profile, save_ADM_profile
 
@@ -39,6 +39,7 @@ def get_params( parser ) -> None:
     parser.add_argument('--model-name', type=str)
     parser.add_argument('--model-type', type=str)
     parser.add_argument('--model-header', type=int, default=-1)
+    parser.add_argument('--is-short', action='store_true', default=False)
     parser.add_argument('--atbounce', action='store_true', default=False)
     parser.add_argument('--timestamp', type=float, default=0.0)
 
@@ -112,7 +113,11 @@ def main( ):
     params = parser.parse_args() # parameters!
 
     # reading the intitial profile
-    if params.model_type.lower() == 'mesa':
+
+    if params.is_short: # special case for *.short profiles
+        prof_raw = get_short_profile( params.model_path, params.verbose )
+
+    elif params.model_type.lower() == 'mesa':
         if params.model_header >= 0:
             prof_raw = get_MESA_profile( params.model_path, params.model_header, params.verbose)
         else:

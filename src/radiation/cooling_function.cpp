@@ -143,6 +143,7 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
       pmb->packages.Get("phoebus")->Param<phoebus::UnitConversions>("unit_conv");
   auto rad = pmb->packages.Get("radiation").get();
   auto opac = pmb->packages.Get("opacity").get();
+  auto progen = pmesh->packages.Get("progenitor").get();
 
   auto &phoebus_pkg = pmb->packages.Get("phoebus");
   auto &code_constants = phoebus_pkg->Param<phoebus::CodeConstants>("code_constants");
@@ -183,6 +184,10 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
   const std::string delep_method = rad->Param<std::string>("delep_method");
   const bool do_lightbulb = rad->Param<bool>("do_lightbulb");
   const bool do_gain_calc = rad->Param<bool>("do_gain_calc");
+
+  // bounce criterion - can be either post-bounce during run or set to post-bounce at init
+  const bool post_bounce =
+      progen->Param<bool>("post_bounce") || progen->Param<bool>("post_bounce_model");
 
   if (do_lightbulb) {
 #ifdef SPINER_USE_HDF
@@ -229,7 +234,11 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
           Real lambda[2];
           lambda[0] = Ye;
 
-          if (do_delep) {
+          // TODO: this should only occur pre-bounce, add additional param check here
+          // (law)
+          if (do_delep && !post_bounce) {
+
+            // TODO: fix all strings in the logic comparisons for GPU optimization (law)
 
             Real dYe;
 
@@ -320,6 +329,8 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
 
               // we need to convert all of our potentials, Enu (MeV -> erg)
               // assuming entropy has units of erg/g/K
+              // TODO: check unit conversions here, i don't think the sEOS scaling for
+              // stellar collapse converts to cgs..
               mu_e *= MeVToErg;
               mu_p *= MeVToErg;
               mu_n *= MeVToErg;
@@ -360,6 +371,8 @@ TaskStatus CoolingFunctionCalculateFourForce(MeshData<Real> *rc, const double dt
           eos_sc.MassFractionsFromDensityTemperature(
               rho, v(b, p::temperature(), k, j, i) * temperature_conversion_factor, Xa,
               Xh, Xn, Xp, Abar, Zbar, lambda);
+          // TODO: check this implementation of do_gain, change it to bounce criterion
+          // (law)
           heat = do_gain * (Xn + Xp) * hfac * std::exp(-tau) *
                  pow((rnorm / (r * length_conversion_factor)), 2);
           cool = (Xn + Xp) * cfac * std::exp(-tau) *

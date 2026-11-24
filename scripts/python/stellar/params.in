@@ -13,6 +13,7 @@ parameter           default (example, if required)      description + defaults +
 --model-name        aag21                               desired name/id for your model
 --model-type        MESA                                type of model (options: MESA, GR1D, KEPLER)
 --model-header      -1                                  (optional) line number (zero-indexed) of the profile header (if < 0, goes to defaults - MESA: 4, KEPLER: 1).
+--is-short                                              (bool) if using a *.short progenitor profile, handles input correctly
 --atbounce                                              (bool) if using a GR1D model, pulls data files at bounce
 --timestamp         0.3                                 (optional) if using a GR1D model and atbounce = false, gets data from timestep (in seconds)                                            
 

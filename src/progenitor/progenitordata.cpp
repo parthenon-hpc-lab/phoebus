@@ -139,6 +139,8 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   // initial model state
   params.Add("post_bounce_model", post_bounce_model);
 
+  // TODO: add params for toatl/final explosion energy?? or not necessary
+
   params.Add("outside_pns_threshold", outside_pns_threshold);
   params.Add("inside_pns_threshold", inside_pns_threshold);
   params.Add("net_heat_threshold", net_heat_threshold);
@@ -155,6 +157,14 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
   using History::ReduceOneVar;
   using parthenon::HistoryOutputVar;
   parthenon::HstVar_list hst_vars = {};
+
+  auto Eexpl = [](MeshData<Real> *md) {return History::CalculateExplosionEnergy(md, false); };
+
+  auto Eexpl_mod = [](MeshData<Real> *md) {return History::CalculateExplosionEnergy(md, true); };
+
+  hst_vars.emplace_back(HistoryOutputVar(HstSum, Eexpl, "E_expl"));
+  hst_vars.emplace_back(HistoryOutputVar(HstSum, Eexpl_mod, "E_expl (mod.)"));
+
   auto Mgain = [](MeshData<Real> *md) {
     return ReduceInGain<fluid_cons::density>(md, 1, 0);
   };
@@ -233,10 +243,10 @@ TaskStatus GetProgenitorState(MeshData<Real> *md, Real simtime) {
         KOKKOS_LAMBDA(const int b, const int k, const int j, const int i,
                       typename Kokkos::MinMax<Real>::value_type &lminmax) {
           Real lambda[2];
-          lambda[0] = v(0, p::ye(), k, j, i);
+          lambda[0] = v(b, p::ye(), k, j, i);
           // we'll do entropy calculation on the fly in the loop
           const Real entropy = eos.EntropyFromDensityTemperature(
-              v(0, p::density(), k, j, i), v(0, p::temperature(), k, j, i), lambda);
+              v(b, p::density(), k, j, i), v(b, p::temperature(), k, j, i), lambda);
 
           // checking for maximum density and minimum entropy
           lminmax.min_val = (entropy < lminmax.min_val ? entropy : lminmax.min_val);
