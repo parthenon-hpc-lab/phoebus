@@ -436,14 +436,13 @@ Real CalculateExplosionEnergy(MeshData<Real> *md, const bool modified) {
           const bool isbound = modified ? bernoulli + ( (alpha * P) / (rho * W)) : bernoulli; // if modified: -h u^t > 1 + (alpha P / W rho )
 
           // sqrt of gamma
-          const Real detg = geom.DetGamma(CellLocation::Cent, 0, k, j, i);
+          const Real detg = geom.DetGamma(CellLocation::Cent, b, k, j, i);
 
           if (isbound) {
             lresult += detg * (crho - rho); // Ekin = detg (W - 1) rho d^3x = detg (c::density - p::density)
             lresult += detg * crho * eps;  // Eint = detg W rho eps d^3x = = detg (c::density * sie(rho, T))
           }
-        },
-        result); 
+        }, result); 
 
   return result; // make sure this is implemented in progenitor history.
 
